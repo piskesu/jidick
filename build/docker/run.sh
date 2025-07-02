@@ -3,8 +3,10 @@
 ELASTICSEARCH_HOST=${ELASTICSEARCH_HOST:-localhost}
 ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-huatuo-bamai}
 
+BUILD_PATH=${BUILD_PATH:-/go/huatuo-bamai}
+RUN_PATH=${RUN_PATH:-/home/huatuo-bamai}
+
 # Wait for Elasticsearch to be ready
-# ref: https://github.com/deviantony/docker-elk/blob/main/setup/entrypoint.sh
 wait_for_elasticsearch() {
     args="-s -D- -m15 -w '%{http_code}' http://${ELASTICSEARCH_HOST}:9200/"
     if [ -n "${ELASTIC_PASSWORD}" ]; then
@@ -38,34 +40,67 @@ wait_for_elasticsearch() {
         echo "$output" | head -c -3
     fi
 
-    return $result
+    if [ $result -ne 0 ]; then
+        case $result in
+            6)
+                echo 'Could not resolve host. Is Elasticsearch running?'
+                ;;
+            7)
+                echo 'Failed to connect to host. Is Elasticsearch healthy?'
+                ;;
+            28)
+                echo 'Timeout connecting to host. Is Elasticsearch healthy?'
+                ;;
+            *)
+                echo "Connection to Elasticsearch failed. Exit code: ${result}"
+                ;;
+        esac
+
+        exit $result
+    fi
 }
 
-exit_code=0
-wait_for_elasticsearch || exit_code=$?
-if [ $exit_code -ne 0 ]; then
-    case $exit_code in
-        6)
-            echo 'Could not resolve host. Is Elasticsearch running?'
-            ;;
-        7)
-            echo 'Failed to connect to host. Is Elasticsearch healthy?'
-            ;;
-        28)
-            echo 'Timeout connecting to host. Is Elasticsearch healthy?'
-            ;;
-        *)
-            echo "Connection to Elasticsearch failed. Exit code: ${exit_code}"
-            ;;
-    esac
+# Compile and copy huatuo-bamai, .conf, bpf.o, cmd-tools to run path
+prepare_run_env() {
+    # compile huatuo-bamai
+    if [ ! -x "$BUILD_PATH/_output/bin/huatuo-bamai" ]; then
+        cd $BUILD_PATH && make clean
+        bpftool btf dump file /sys/kernel/btf/vmlinux format c > bpf/include/vmlinux.h || {
+            echo "Failed to dump vmlinux.h"
+            exit 1
+        }
+        make || {
+            echo "Failed to compile huatuo-bamai"
+            exit 1
+        }
+    fi
+    # copy huatuo-bamai, .conf, bpf.o, cmd-tools to run path
+    cp $BUILD_PATH/_output/bin/huatuo-bamai $RUN_PATH/huatuo-bamai || {
+        echo "Failed to copy huatuo-bamai"
+        exit 1
+    }
+    cp $BUILD_PATH/huatuo-bamai.conf $RUN_PATH/huatuo-bamai.conf || {
+        echo "Failed to copy huatuo-bamai.conf"
+        exit 1
+    }
+    mkdir -p $RUN_PATH/bpf && cp $BUILD_PATH/bpf/*.o $RUN_PATH/bpf/ || {
+        echo "Failed to copy bpf files"
+        exit 1
+    }
+    mkdir -p $RUN_PATH/tracer && find $BUILD_PATH/cmd/ -type f -name "*.bin" -exec cp {} $RUN_PATH/tracer/ \; || {
+        echo "Failed to copy cmd-tools files"
+        exit 1
+    }
+}
 
-    exit $exit_code
-fi
+# Prepare run env for huatuo-bamai
+prepare_run_env
+echo "huatuo-bamai run env is ready."
 
-# Waiting for initialization of Elasticsearch built-in users
-sleep 5
-
+wait_for_elasticsearch
+sleep 5 # Waiting for initialization of Elasticsearch built-in users
 echo "Elasticsearch is ready."
 
 # Run huatuo-bamai
-exec _output/bin/huatuo-bamai --region example --config huatuo-bamai.conf
+cd $RUN_PATH
+exec ./huatuo-bamai --region example --config huatuo-bamai.conf

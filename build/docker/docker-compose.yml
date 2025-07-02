@@ -39,8 +39,11 @@ services:
     environment:
       ELASTICSEARCH_HOST: ${ELASTICSEARCH_HOST:-}
       ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:-}
+      BUILD_PATH: ${BUILD_PATH:-}
+      RUN_PATH: ${RUN_PATH:-}
     volumes:
-      - ./run.sh:/run.sh:ro
+      - ../../:${BUILD_PATH}:rw # src
+      - ./run.sh:${RUN_PATH}/run.sh:ro # run
       - /sys/kernel:/sys/kernel
     depends_on:
       - elasticsearch
