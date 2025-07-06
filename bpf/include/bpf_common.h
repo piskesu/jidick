@@ -15,6 +15,9 @@
 #define PERF_MAX_STACK_DEPTH	127
 #define PERF_MIN_STACK_DEPTH	16
 
+/* flags for both BPF_FUNC_get_stackid and BPF_FUNC_get_stack. */
+#define COMPAT_BPF_F_USER_STACK 256
+
 /* flags for BPF_MAP_UPDATE_ELEM command */
 #define COMPAT_BPF_ANY		0 /* create new element or update existing */
 #define COMPAT_BPF_NOEXIST	1 /* create new element if it didn't exist */

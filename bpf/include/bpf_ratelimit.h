@@ -105,7 +105,7 @@ bpf_ratelimited_core_in_map(void *ctx, void *map, void *perf_map,
 	// the threshold/max_burst is exceeded, notify once in a cycle
 	if (old_nmissed == 0 || (rate->max_burst > 0 &&
 				 rate->nmissed > rate->max_burst - rate->burst))
-		bpf_perf_event_output(ctx, perf_map, BPF_F_CURRENT_CPU, rate,
+		bpf_perf_event_output(ctx, perf_map, COMPAT_BPF_F_CURRENT_CPU, rate,
 				      sizeof(struct bpf_ratelimit));
 	return true;
 }
