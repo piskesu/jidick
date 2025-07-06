@@ -1,10 +1,11 @@
-#include "bpf_common.h"
 #include "vmlinux.h"
-#include "vmlinux_sched.h"
 
 #include <bpf/bpf_core_read.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
+
+#include "bpf_common.h"
+#include "vmlinux_sched.h"
 
 char __license[] SEC("license") = "Dual MIT/GPL";
 

@@ -1,9 +1,10 @@
 #include "vmlinux.h"
-#include "bpf_common.h"
-#include "bpf_func_trace.h"
 
 #include <bpf/bpf_core_read.h>
 #include <bpf/bpf_helpers.h>
+
+#include "bpf_common.h"
+#include "bpf_func_trace.h"
 
 struct mm_free_compact_entry {
 	/* host: compaction latency */

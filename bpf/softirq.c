@@ -1,21 +1,23 @@
 #include "vmlinux.h"
-#include "bpf_common.h"
+
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
+
+#include "bpf_common.h"
 #include "bpf_ratelimit.h"
 
 char __license[] SEC("license") = "Dual MIT/GPL";
 
-#define NR_STACK_TRACE_MAX      0x4000
-#define MSEC_PER_NSEC           1000000UL
-#define TICK_DEP_MASK_NONE      0
-#define SOFTIRQ_THRESH		5000000UL
+#define NR_STACK_TRACE_MAX 0x4000
+#define MSEC_PER_NSEC 1000000UL
+#define TICK_DEP_MASK_NONE 0
+#define SOFTIRQ_THRESH 5000000UL
 
 volatile const u64 softirq_thresh = SOFTIRQ_THRESH;
 
 #define CPU_NUM 128
 #define TICK 1000
-BPF_RATELIMIT(rate, 1, CPU_NUM * TICK * 1000);
+BPF_RATELIMIT(rate, 1, CPU_NUM *TICK * 1000);
 
 struct timer_softirq_run_ts {
 	u32 start_trace;
@@ -63,10 +65,10 @@ void probe_scheduler_tick(struct pt_regs *ctx)
 	if (bpf_ratelimited(&rate))
 		return;
 
-	//update soft timer timestamps
+	// update soft timer timestamps
 	int key = 0;
 	struct timer_softirq_run_ts *ts;
-	//struct thresh_data *tdata;
+	// struct thresh_data *tdata;
 	struct report_event *event;
 	u64 now;
 	u64 delta;
@@ -78,7 +80,7 @@ void probe_scheduler_tick(struct pt_regs *ctx)
 	if (!ts->start_trace)
 		return;
 
-	//update soft timer timestamps
+	// update soft timer timestamps
 	if (!ts->soft_ts) {
 		ts->soft_ts = bpf_ktime_get_ns();
 		return;
@@ -90,26 +92,28 @@ void probe_scheduler_tick(struct pt_regs *ctx)
 
 	if (ts->restarting_tick) {
 		ts->restarting_tick = 0;
-		ts->soft_ts = bpf_ktime_get_ns();
+		ts->soft_ts	    = bpf_ktime_get_ns();
 
 		return;
 	}
 
-	now = bpf_ktime_get_ns();
+	now   = bpf_ktime_get_ns();
 	delta = now - ts->soft_ts;
 
 	// if delta over threshold, dump important info to user
 	if (delta >= softirq_thresh) {
-		event->now = now;
+		event->now	  = now;
 		event->stall_time = delta;
 		__builtin_memset(event->comm, 0, sizeof(event->comm));
 		bpf_get_current_comm(&event->comm, sizeof(event->comm));
 		event->pid = (u32)bpf_get_current_pid_tgid();
 		event->cpu = bpf_get_smp_processor_id();
-		event->stack_size = bpf_get_stack(ctx, event->stack, sizeof(event->stack), 0);
+		event->stack_size =
+		    bpf_get_stack(ctx, event->stack, sizeof(event->stack), 0);
 
-		bpf_perf_event_output(ctx, &irqoff_event_map, COMPAT_BPF_F_CURRENT_CPU,
-				event, sizeof(struct report_event));
+		bpf_perf_event_output(ctx, &irqoff_event_map,
+				      COMPAT_BPF_F_CURRENT_CPU, event,
+				      sizeof(struct report_event));
 	}
 
 	// update soft_ts, use for next trace
@@ -152,7 +156,7 @@ void probe_tick_nohz_restart_sched_tick(struct pt_regs *ctx)
 
 	now = bpf_ktime_get_ns();
 
-	ts->soft_ts = now;
-	ts->start_trace = 1;
+	ts->soft_ts	    = now;
+	ts->start_trace	    = 1;
 	ts->restarting_tick = 1;
 }
