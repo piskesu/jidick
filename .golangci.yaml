@@ -1,0 +1,128 @@
+---
+linters:
+  disable-all: true
+  enable:
+    - goimports
+    - gosimple
+    - ineffassign # Detects when assignments to existing variables are not used
+    - unconvert   # Remove unnecessary type conversions
+    - exportloopref # Checks for pointers to enclosing loop variables
+    - tenv        # Detects using os.Setenv instead of t.Setenv since Go 1.17
+    - dupword     # Checks for duplicate words in the source code
+    - gofmt       # Gofmt checks whether code was gofmt-ed
+    - bodyclose   # checks whether HTTP response body is closed successfully
+    - misspell
+    - staticcheck
+    - typecheck
+    - unused
+    - loggercheck
+    - nakedret
+    - gofumpt
+    - musttag
+    - whitespace
+    - dupword
+    - gocritic
+    - usestdlibvars
+    - gosec
+    - govet
+    - nolintlint
+    - unused
+    - errcheck
+    - errname
+    - errorlint
+    - fatcontext
+    - gocheckcompilerdirectives
+    - inamedparam
+
+    # Could be enabled later:
+    # - gocyclo
+    # - prealloc
+    # - maligned
+
+linters-settings:
+  unused:
+    # Mark all struct fields that have been written to as used.
+    # Default: true
+    field-writes-are-uses: false
+    # Mark all local variables as used.
+    # default: true
+    local-variables-are-used: false
+  misspell:
+    # Correct spellings using locale preferences for US or UK.
+    # Setting locale to US will correct the British spelling of 'colour' to 'color'.
+    # Default is to use a neutral variety of English.
+    locale: US
+  gofumpt:
+    # Choose whether to use the extra rules.
+    # Default: false
+    extra-rules: true
+    # Module path which contains the source code being formatted.
+    module-path: huatuo-bamai
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+      - experimental
+      - opinionated
+    disabled-checks:
+      - commentedOutCode
+      - deferInLoop
+      - evalOrder
+      - exitAfterDefer
+      - exposedSyncMutex
+      - ifElseChain
+      - importShadow
+      - sloppyReassign
+      - unnamedResult
+      - whyNoLint
+      - filepathJoin
+  nolintlint:
+    allow-unused: true
+  gosec:
+    # https://github.com/securego/gosec#available-rules
+    #
+    # The following issues surfaced when `gosec` linter
+    # was enabled.
+    # Disable G115:
+    # "G115: integer overflow conversion int8 -> uint64 (gosec)"
+    excludes:
+      - G107
+      - G115
+      - G204
+      - G401
+      - G501
+  exclude-dirs:
+    - pkg/tracing
+    - vendor
+issues:
+  # List of regexps of issue texts to exclude.
+  #
+  # But independently of this option we use default exclude patterns,
+  # it can be disabled by `exclude-use-default: false`.
+  # To list all excluded by default patterns execute `golangci-lint run --help`
+  #
+  # Default: https://golangci-lint.run/usage/false-positives/#default-exclusions
+  #
+  # _xxx as used var.
+  exclude:
+    - "^(var|field) `_.*` is unused$"
+  exclude-rules:
+    - linters:
+        - revive
+      text: "if-return"
+    - linters:
+        - revive
+      text: "empty-block"
+    - linters:
+        - revive
+      text: "superfluous-else"
+    - linters:
+        - revive
+      text: "unused-parameter"
+    - linters:
+        - revive
+      text: "unreachable-code"
+    - linters:
+        - revive
+      text: "redefines-builtin-id"

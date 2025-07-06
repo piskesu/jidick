@@ -16,35 +16,9 @@ package collector
 
 import (
 	"bytes"
-	"encoding/binary"
 	"io"
 	"os"
-
-	"huatuo-bamai/internal/log"
 )
-
-// xfs_util maps superblocks of XFS devices to retrieve
-// essential information from superblock.
-const (
-	XFS_SB_MAGIC = 0x58465342
-	XFSLABEL_MAX = 12
-)
-
-// Construct the XFS superblock, hiding unused variables
-type xfsSuperBlock struct {
-	SbMagicnum  uint32
-	SbBlocksize uint32
-	_           [16]byte
-	_           [7]uint64
-	_           [4]uint32
-	SbLogblocks uint32
-	_           [6]uint16
-	_           [XFSLABEL_MAX]byte
-	_           [12]uint8
-	_           [8]uint64
-	_           [12]uint32
-	_           [16]byte
-}
 
 func fileLineCounter(filePath string) (int, error) {
 	count := 0
@@ -72,30 +46,4 @@ func fileLineCounter(filePath string) (int, error) {
 	}
 
 	return count, nil
-}
-
-// Calculate the Xlog size from superblock
-func xfsLogSize(path string) (float64, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		log.Infof("open failed: %v", err)
-		return -1, err
-	}
-	defer file.Close()
-
-	var sb xfsSuperBlock
-	err = binary.Read(file, binary.BigEndian, &sb)
-	if err != nil {
-		log.Infof("read superblock failed: err%v", err)
-		return -1, err
-	}
-
-	// Check Magic Number of Super Block
-	if sb.SbMagicnum != XFS_SB_MAGIC {
-		log.Infof("Not a valid XFS superblock (Magic: 0x%x)", sb.SbMagicnum)
-		return -1, err
-	}
-
-	xlogBytes := float64(sb.SbLogblocks * sb.SbBlocksize)
-	return xlogBytes, nil
 }
