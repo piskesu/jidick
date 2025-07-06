@@ -1,0 +1,48 @@
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION:-8.15.5}
+    container_name: es
+    network_mode: host
+    environment:
+      discovery.type: single-node
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:-}
+      KIBANA_SYSTEM_PASSWORD: ${KIBANA_SYSTEM_PASSWORD:-}
+    volumes:
+      - ./elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+  
+  prometheus:
+    image: prom/prometheus:${PROMETHEUS_VERSION:-v2.53.3}
+    container_name: prometheus
+    network_mode: host
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+  grafana:
+    image: grafana/grafana-oss:${GRAFANA_VERSION:-11.0.0}
+    container_name: grafana
+    network_mode: host
+    volumes:
+      - ./grafana/datasources/elasticsearch.yaml:/etc/grafana/provisioning/datasources/elasticsearch.yaml:ro
+      - ./grafana/datasources/prometheus.yaml:/etc/grafana/provisioning/datasources/prometheus.yaml:ro
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    depends_on:
+      - prometheus
+      - elasticsearch
+
+  huatuo-bamai:
+    build:
+      context: ./../../ # compile required in Dockerfile
+      dockerfile: ./build/docker/Dockerfile
+    container_name: huatuo-bamai
+    network_mode: host
+    privileged: true
+    environment:
+      ELASTICSEARCH_HOST: ${ELASTICSEARCH_HOST:-}
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:-}
+    volumes:
+      - ./run.sh:/run.sh:ro
+      - /sys/kernel:/sys/kernel
+    depends_on:
+      - elasticsearch
+      - prometheus
+      - grafana
