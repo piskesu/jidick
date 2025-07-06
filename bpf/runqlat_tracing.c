@@ -76,7 +76,7 @@ static int trace_enqueue(u32 pid)
         return 0;
 
     ts = bpf_ktime_get_ns();
-    bpf_map_update_elem(&latency, &pid, &ts, BPF_ANY);
+    bpf_map_update_elem(&latency, &pid, &ts, COMPAT_BPF_ANY);
 
     return 0;
 }
@@ -142,7 +142,7 @@ int sched_switch_entry(struct bpf_raw_tracepoint_args *ctx)
     if (state == TASK_RUNNING) {
 	if (prev_pid != 0) {
 	    now = bpf_ktime_get_ns();
-            bpf_map_update_elem(&latency, &prev_pid, &now, BPF_ANY);
+            bpf_map_update_elem(&latency, &prev_pid, &now, COMPAT_BPF_ANY);
 	}
 	is_voluntary = 0;
     } else {
@@ -160,7 +160,7 @@ int sched_switch_entry(struct bpf_raw_tracepoint_args *ctx)
             .g_nlat_03 = 0,
             .g_nlat_04 = 0,
         };
-        bpf_map_update_elem(&cpu_host_metric, &g_key, &g_new_stat, BPF_NOEXIST);
+        bpf_map_update_elem(&cpu_host_metric, &g_key, &g_new_stat, COMPAT_BPF_NOEXIST);
         g_entry = bpf_map_lookup_elem(&cpu_host_metric, &g_key);
         if (!g_entry)
             return 0;
@@ -180,7 +180,7 @@ int sched_switch_entry(struct bpf_raw_tracepoint_args *ctx)
                 .nlat_03 = 0,
                 .nlat_04 = 0,
             };
-            bpf_map_update_elem(&cpu_tg_metric, &key, &new_stat, BPF_NOEXIST);
+            bpf_map_update_elem(&cpu_tg_metric, &key, &new_stat, COMPAT_BPF_NOEXIST);
             entry = bpf_map_lookup_elem(&cpu_tg_metric, &key);
             if (!entry)
                 return 0;
@@ -229,7 +229,7 @@ int sched_switch_entry(struct bpf_raw_tracepoint_args *ctx)
                 .nlat_03 = 0,
                 .nlat_04 = 0,
             };
-            bpf_map_update_elem(&cpu_tg_metric, &key, &new_stat, BPF_NOEXIST);
+            bpf_map_update_elem(&cpu_tg_metric, &key, &new_stat, COMPAT_BPF_NOEXIST);
             entry = bpf_map_lookup_elem(&cpu_tg_metric, &key);
             if (!entry)
                 return 0;

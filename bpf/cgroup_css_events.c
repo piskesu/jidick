@@ -48,7 +48,7 @@ bpf_cgroup_event_class_prog(struct bpf_raw_tracepoint_args *ctx, u64 type)
 	bpf_probe_read(&data.css, sizeof(u64) * CGROUP_SUBSYS_COUNT,
 		       BPF_CORE_READ(cgrp, subsys));
 
-	bpf_perf_event_output(ctx, &cgroup_perf_events, BPF_F_CURRENT_CPU,
+	bpf_perf_event_output(ctx, &cgroup_perf_events, COMPAT_BPF_F_CURRENT_CPU,
 			      &data, sizeof(data));
 	return 0;
 }

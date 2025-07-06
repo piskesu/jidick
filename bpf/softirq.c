@@ -28,7 +28,7 @@ struct report_event {
 	s64 stack_size;
 	u64 now;
 	u64 stall_time;
-	char comm[TASK_COMM_LEN];
+	char comm[COMPAT_TASK_COMM_LEN];
 	u32 pid;
 	u32 cpu;
 };
@@ -108,7 +108,7 @@ void probe_scheduler_tick(struct pt_regs *ctx)
 		event->cpu = bpf_get_smp_processor_id();
 		event->stack_size = bpf_get_stack(ctx, event->stack, sizeof(event->stack), 0);
 
-		bpf_perf_event_output(ctx, &irqoff_event_map, BPF_F_CURRENT_CPU,
+		bpf_perf_event_output(ctx, &irqoff_event_map, COMPAT_BPF_F_CURRENT_CPU,
 				event, sizeof(struct report_event));
 	}
 

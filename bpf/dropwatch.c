@@ -28,7 +28,7 @@ struct perf_event_t {
     u32 sk_max_ack_backlog;
     u8 state;
     u8 type;
-    char comm[TASK_COMM_LEN];
+    char comm[COMPAT_TASK_COMM_LEN];
 };
 
 /* format: /sys/kernel/debug/tracing/events/skb/kfree_skb/format */
@@ -182,10 +182,10 @@ int bpf_kfree_skb_prog(struct kfree_skb_args *ctx)
     data->sk_max_ack_backlog = 0;   // ignore sk_max_ack_backlog in dropwatch case.
 
     // output
-    bpf_perf_event_output(ctx, &perf_events, BPF_F_CURRENT_CPU, data, sizeof(*data));
+    bpf_perf_event_output(ctx, &perf_events, COMPAT_BPF_F_CURRENT_CPU, data, sizeof(*data));
 
     // clean
-    bpf_map_update_elem(&dropwatch_stackmap, &stackmap_key, &zero_data, BPF_EXIST);
+    bpf_map_update_elem(&dropwatch_stackmap, &stackmap_key, &zero_data, COMPAT_BPF_EXIST);
     return 0;
 }
 
@@ -223,10 +223,10 @@ static int fill_overflow_event(void *ctx, u8 type, struct sock *sk, struct sk_bu
     data->sk_max_ack_backlog = BPF_CORE_READ(sk, sk_max_ack_backlog);
 
     // output
-    bpf_perf_event_output(ctx, &perf_events, BPF_F_CURRENT_CPU, data, sizeof(*data));
+    bpf_perf_event_output(ctx, &perf_events, COMPAT_BPF_F_CURRENT_CPU, data, sizeof(*data));
 
     // clean
-    bpf_map_update_elem(&dropwatch_stackmap, &stackmap_key, &zero_data, BPF_EXIST);
+    bpf_map_update_elem(&dropwatch_stackmap, &stackmap_key, &zero_data, COMPAT_BPF_EXIST);
     return 0;
 }
 

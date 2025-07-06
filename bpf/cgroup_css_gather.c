@@ -50,7 +50,7 @@ int bpf_cgroup_clone_children_read_prog(struct pt_regs *ctx)
 		       BPF_CORE_READ(cgrp, subsys));
 
 	/* output */
-	bpf_perf_event_output(ctx, &cgroup_perf_events, BPF_F_CURRENT_CPU,
+	bpf_perf_event_output(ctx, &cgroup_perf_events, COMPAT_BPF_F_CURRENT_CPU,
 			      &data, sizeof(data));
 	return 0;
 }

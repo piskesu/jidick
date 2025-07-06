@@ -17,7 +17,7 @@ int ad_disable(struct pt_regs *ctx)
 	// ko module and CO-RE relocation is not supported directly at old
 	// kernel
 	u64 nothing = 0;
-	bpf_perf_event_output(ctx, &ad_event_map, BPF_F_CURRENT_CPU, &nothing,
+	bpf_perf_event_output(ctx, &ad_event_map, COMPAT_BPF_F_CURRENT_CPU, &nothing,
 			      sizeof(nothing));
 	return 0;
 }

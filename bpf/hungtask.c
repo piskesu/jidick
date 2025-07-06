@@ -19,12 +19,12 @@ struct {
 
 struct hungtask_info {
     int32_t pid;
-    char comm[TASK_COMM_LEN];
+    char comm[COMPAT_TASK_COMM_LEN];
 };
 
 struct tracepoint_args {
 	unsigned long pad;
-	char comm[TASK_COMM_LEN];
+	char comm[COMPAT_TASK_COMM_LEN];
 	int pid;
 };
 
@@ -37,7 +37,7 @@ int tracepoint_sched_process_hang(struct tracepoint_args *ctx)
         return 0;
     info.pid = ctx->pid;
 	// custom defined struct can't use BPF_CORE_READ_STR_INTO()
-	bpf_probe_read_str(&info.comm, TASK_COMM_LEN, ctx->comm);
-    bpf_perf_event_output(ctx, &hungtask_perf_events, BPF_F_CURRENT_CPU, &info, sizeof(info));
+	bpf_probe_read_str(&info.comm, COMPAT_TASK_COMM_LEN, ctx->comm);
+    bpf_perf_event_output(ctx, &hungtask_perf_events, COMPAT_BPF_F_CURRENT_CPU, &info, sizeof(info));
     return 0;
 }

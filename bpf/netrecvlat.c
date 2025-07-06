@@ -30,7 +30,7 @@ struct skb_copy_datagram_iovec_args {
 };
 
 struct perf_event_t {
-    char comm[TASK_COMM_LEN];
+    char comm[COMPAT_TASK_COMM_LEN];
     u64 latency;
     u64 tgid_pid;
     u64 pkt_len;
@@ -106,7 +106,7 @@ static inline void fill_and_output_event(void *ctx, struct sk_buff *skb, struct 
     event.state = _mix->state;
     event.where = _mix->where;
 
-    bpf_perf_event_output(ctx, &net_recv_lat_event_map, BPF_F_CURRENT_CPU, &event, sizeof(struct perf_event_t));
+    bpf_perf_event_output(ctx, &net_recv_lat_event_map, COMPAT_BPF_F_CURRENT_CPU, &event, sizeof(struct perf_event_t));
 }
 
 SEC("tracepoint/net/netif_receive_skb")

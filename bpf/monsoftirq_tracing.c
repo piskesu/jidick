@@ -53,7 +53,7 @@ void probe_softirq_raise(struct tp_softirq *ctx)
 	nr = ctx->vec;
 
 	now = bpf_ktime_get_ns();
-	bpf_map_update_elem(&silat_map, &nr, &now, BPF_ANY);
+	bpf_map_update_elem(&silat_map, &nr, &now, COMPAT_BPF_ANY);
 }
 
 static void

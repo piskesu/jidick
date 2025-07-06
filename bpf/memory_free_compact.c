@@ -34,7 +34,7 @@ update_metric_map(u64 free_delta_ns, u64 compact_delta_ns)
 			.compaction_stat = compact_delta_ns,
 		};
 		bpf_map_update_elem(&mm_free_compact_map, &key, &new_metrics,
-				    BPF_ANY);
+				    COMPAT_BPF_ANY);
 		return;
 	}
 

@@ -17,8 +17,8 @@ struct {
 } oom_perf_events SEC(".maps");
 
 struct oom_info {
-    char trigger_comm[TASK_COMM_LEN];
-    char victim_comm[TASK_COMM_LEN];
+    char trigger_comm[COMPAT_TASK_COMM_LEN];
+    char victim_comm[COMPAT_TASK_COMM_LEN];
     u32 trigger_pid;
     u32 victim_pid;
     u64 trigger_memcg_css;
@@ -49,6 +49,6 @@ int kprobe_oom_kill_process(struct pt_regs *ctx)
     info.victim_memcg_css = (u64)BPF_CORE_READ(victim_task, cgroups, subsys[4]);
     info.trigger_memcg_css = (u64)BPF_CORE_READ(trigger_task, cgroups, subsys[4]);
     
-    bpf_perf_event_output(ctx, &oom_perf_events, BPF_F_CURRENT_CPU, &info, sizeof(info));
+    bpf_perf_event_output(ctx, &oom_perf_events, COMPAT_BPF_F_CURRENT_CPU, &info, sizeof(info));
     return 0;
 }

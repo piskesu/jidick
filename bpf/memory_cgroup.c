@@ -38,7 +38,7 @@ int tracepoint_vmscan_mm_vmscan_memcg_reclaim_begin(struct pt_regs *ctx)
 			.directstall_count = 1,
 		};
 		bpf_map_update_elem(&mem_cgroup_map, &mm_subsys, &new_metrics,
-				    BPF_ANY);
+				    COMPAT_BPF_ANY);
 		return 0;
 	}
 

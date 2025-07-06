@@ -20,7 +20,7 @@ struct {
 struct softlockup_info {
 	u32 cpu;
     u32 pid;
-    char comm[TASK_COMM_LEN];
+    char comm[COMPAT_TASK_COMM_LEN];
 };
 
 SEC("kprobe/watchdog_timer_fn+442")
@@ -35,6 +35,6 @@ int kprobe_watchdog_timer_fn(struct pt_regs *ctx)
     task = (struct task_struct *)bpf_get_current_task();
     info.pid = bpf_get_current_pid_tgid() & 0xffffffffUL;
     BPF_CORE_READ_STR_INTO(&info.comm, task, comm);
-    bpf_perf_event_output(ctx, &softlockup_perf_events, BPF_F_CURRENT_CPU, &info, sizeof(info));
+    bpf_perf_event_output(ctx, &softlockup_perf_events, COMPAT_BPF_F_CURRENT_CPU, &info, sizeof(info));
     return 0;
 }

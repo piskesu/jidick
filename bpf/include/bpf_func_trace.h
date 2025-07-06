@@ -23,7 +23,7 @@ static __always_inline void func_trace_begain(u64 id)
 		.id	  = id,
 	};
 
-	bpf_map_update_elem(&func_trace_map, &id, &entry, BPF_ANY);
+	bpf_map_update_elem(&func_trace_map, &id, &entry, COMPAT_BPF_ANY);
 }
 
 static __always_inline struct trace_entry_ctx *func_trace_end(u64 id)

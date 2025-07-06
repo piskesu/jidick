@@ -19,7 +19,7 @@ struct {
 } reclaim_perf_events SEC(".maps");
 
 struct reclaim_entry {
-	char comm[TASK_COMM_LEN];
+	char comm[COMPAT_TASK_COMM_LEN];
 	u64 delta_time;
 	u64 css;
 	u64 pid;
@@ -55,7 +55,7 @@ int kretprobe_try_to_free_pages(struct pt_regs *ctx)
 		bpf_get_current_comm(data.comm, sizeof(data.comm));
 
 		bpf_perf_event_output(ctx, &reclaim_perf_events,
-				      BPF_F_CURRENT_CPU, &data,
+				      COMPAT_BPF_F_CURRENT_CPU, &data,
 				      sizeof(struct reclaim_entry));
 	}
 

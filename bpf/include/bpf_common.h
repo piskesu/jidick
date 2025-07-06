@@ -5,28 +5,10 @@
 #define NULL ((void *)0)
 #endif
 
-/* BPF_FUNC_perf_event_output, BPF_FUNC_perf_event_read and
- * BPF_FUNC_perf_event_read_value flags.
- */
-enum {
-	BPF_F_INDEX_MASK		= 0xffffffffULL,
-	BPF_F_CURRENT_CPU		= BPF_F_INDEX_MASK,
-/* BPF_FUNC_perf_event_output for sk_buff input context. */
-	BPF_F_CTXLEN_MASK		= (0xfffffULL << 32),
-};
+/* define COMPAT_XXX for compat old kernel vmlinux.h */
+#define COMPAT_BPF_F_CURRENT_CPU 0xffffffffULL
 
-/* flags for both BPF_FUNC_get_stackid and BPF_FUNC_get_stack. */
-enum {
-	BPF_F_SKIP_FIELD_MASK		= 0xffULL,
-	BPF_F_USER_STACK		= (1ULL << 8),
-/* flags used by BPF_FUNC_get_stackid only. */
-	BPF_F_FAST_STACK_CMP		= (1ULL << 9),
-	BPF_F_REUSE_STACKID		= (1ULL << 10),
-/* flags used by BPF_FUNC_get_stack only. */
-	BPF_F_USER_BUILD_ID		= (1ULL << 11),
-};
-
-#define TASK_COMM_LEN   16
+#define COMPAT_TASK_COMM_LEN   16
 #define PATH_MAX        4096    /* # chars in a path name including nul */
 
 /* include/uapi/linux/perf_event.h */
@@ -34,9 +16,9 @@ enum {
 #define PERF_MIN_STACK_DEPTH	16
 
 /* flags for BPF_MAP_UPDATE_ELEM command */
-#define BPF_ANY		0 /* create new element or update existing */
-#define BPF_NOEXIST	1 /* create new element if it didn't exist */
-#define BPF_EXIST	2 /* update existing element */
-#define BPF_F_LOCK	4 /* spin_lock-ed map_lookup/map_update */
+#define COMPAT_BPF_ANY		0 /* create new element or update existing */
+#define COMPAT_BPF_NOEXIST	1 /* create new element if it didn't exist */
+#define COMPAT_BPF_EXIST	2 /* update existing element */
+#define COMPAT_BPF_F_LOCK	4 /* spin_lock-ed map_lookup/map_update */
 
 #endif /* __BPF_COMMON_H__ */
