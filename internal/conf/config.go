@@ -222,8 +222,11 @@ type CommonConf struct {
 
 	// Pod configuration
 	Pod struct {
-		KubeletPodListURL string `default:"http://127.0.0.1:10255/pods"`
-		DockerAPIVersion  string `default:"1.24"`
+		KubeletPodListURL       string `default:"http://127.0.0.1:10255/pods"`
+		KubeletPodListHTTPSURL  string `default:"https://127.0.0.1:10250/pods"`
+		KubeletPodCACertPath    string `default:"/etc/kubernetes/ca.pem"`
+		KubeletPodClientCertDir string `default:"/var/lib/kubelet/pki/"`
+		DockerAPIVersion        string `default:"1.24"`
 	}
 }
 

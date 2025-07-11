@@ -15,10 +15,14 @@
 package pod
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -112,15 +116,49 @@ func kubeletSyncContainers() error {
 
 func kubeletGetPodList() (corev1.PodList, error) {
 	kubeletPodListURL := conf.Get().Pod.KubeletPodListURL
+	client := &http.Client{
+		Timeout: kubeletReqTimeout,
+	}
+	if podList, err := kubeletDoRequest(client, kubeletPodListURL); err == nil {
+		return podList, nil
+	}
 
+	// get the Cert of CA and Client kubelet-client-current.pem
+	kubeletPodCACertPath := conf.Get().Pod.KubeletPodCACertPath
+	kubeletPodClientCertDir := conf.Get().Pod.KubeletPodClientCertDir
+	kubeletPodClientCertPath := filepath.Join(kubeletPodClientCertDir, "kubelet-client-current.pem")
+	kubeletPodClientKeyPath := filepath.Join(kubeletPodClientCertDir, "kubelet-client-current.pem")
+
+	// Load Client Cert and Key
+	cert, err := tls.LoadX509KeyPair(kubeletPodClientCertPath, kubeletPodClientKeyPath)
+	if err != nil {
+		return corev1.PodList{}, fmt.Errorf("loading client key pair: %w", err)
+	}
+
+	caCert, err := os.ReadFile(kubeletPodCACertPath)
+	if err != nil {
+		return corev1.PodList{}, fmt.Errorf("reading CA certificate: %w", err)
+	}
+
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(caCert)
+	client.Transport = &http.Transport{
+		TLSClientConfig: &tls.Config{
+			Certificates:       []tls.Certificate{cert},
+			RootCAs:            caCertPool,
+			InsecureSkipVerify: true, // #nosec G402
+		},
+	}
+
+	kubeletPodListURL = conf.Get().Pod.KubeletPodListHTTPSURL
+	return kubeletDoRequest(client, kubeletPodListURL)
+}
+
+func kubeletDoRequest(client *http.Client, kubeletPodListURL string) (corev1.PodList, error) {
 	podList := corev1.PodList{}
 	req, err := http.NewRequest(http.MethodGet, kubeletPodListURL, http.NoBody)
 	if err != nil {
 		return podList, err
-	}
-
-	client := &http.Client{
-		Timeout: kubeletReqTimeout,
 	}
 
 	resp, err := client.Do(req)
