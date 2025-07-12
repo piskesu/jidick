@@ -104,8 +104,6 @@ static void sk_get_type_and_protocol(struct sock *sk, u16 *protocol, u16 *type)
 		return;
 	}
 
-	// kernel version >= 5.10
-	//
 	// struct sock {
 	//   u16         sk_type;
 	//   u16         sk_protocol;
@@ -141,6 +139,7 @@ int bpf_kfree_skb_prog(struct kfree_skb_args *ctx)
 	sk = BPF_CORE_READ(skb, sk);
 	if (!sk)
 		return 0;
+
 	sk_common = (struct sock_common *)sk;
 
 	// filter the sock by AF_INET, SOCK_STREAM, IPPROTO_TCP
@@ -151,12 +150,10 @@ int bpf_kfree_skb_prog(struct kfree_skb_args *ctx)
 	if ((u8)protocol != IPPROTO_TCP || type != SOCK_STREAM)
 		return 0;
 
-	// filter not CLOSE
 	state = BPF_CORE_READ(sk_common, skc_state);
 	if (state == TCP_CLOSE || state == 0)
 		return 0;
 
-	// ratelimit
 	if (bpf_ratelimited(&rate))
 		return 0;
 
@@ -182,113 +179,12 @@ int bpf_kfree_skb_prog(struct kfree_skb_args *ctx)
 	data->queue_mapping = BPF_CORE_READ(skb, queue_mapping);
 	data->stack_size =
 	    bpf_get_stack(ctx, data->stack, sizeof(data->stack), 0);
-	data->sk_max_ack_backlog =
-	    0; // ignore sk_max_ack_backlog in dropwatch case.
+	data->sk_max_ack_backlog = 0;
 
-	// output
 	bpf_perf_event_output(ctx, &perf_events, COMPAT_BPF_F_CURRENT_CPU, data,
 			      sizeof(*data));
 
-	// clean
 	bpf_map_update_elem(&dropwatch_stackmap, &stackmap_key, &zero_data,
 			    COMPAT_BPF_EXIST);
 	return 0;
 }
-
-// The current kernel does not support kprobe+offset very well, waiting for
-// kpatch to come online.
-#if 0
-static int fill_overflow_event(void *ctx, u8 type, struct sock *sk, struct sk_buff *skb)
-{
-
-    struct perf_event_t *data = NULL;
-    struct iphdr iphdr;
-    struct tcphdr tcphdr;
-
-    data = bpf_map_lookup_elem(&dropwatch_stackmap, &stackmap_key);
-    if (!data) {
-        return 0;
-    }
-
-    bpf_probe_read(&iphdr, sizeof(iphdr), skb_network_header(skb));
-    bpf_probe_read(&tcphdr, sizeof(tcphdr), skb_transport_header(skb));
-
-    /* event */
-    data->tgid_pid = bpf_get_current_pid_tgid();
-    bpf_get_current_comm(&data->comm, sizeof(data->comm));
-    data->type = type;
-    data->state = 0;
-    data->saddr = iphdr.saddr;
-    data->daddr = iphdr.daddr;
-    data->sport = tcphdr.source;
-    data->dport = tcphdr.dest;
-    data->seq = tcphdr.seq;
-    data->ack_seq = tcphdr.ack_seq;
-    data->pkt_len = BPF_CORE_READ(skb, len);
-    data->queue_mapping = BPF_CORE_READ(skb, queue_mapping);
-    data->stack_size = 0;   // ignore stack in not-overflow.
-    data->sk_max_ack_backlog = BPF_CORE_READ(sk, sk_max_ack_backlog);
-
-    // output
-    bpf_perf_event_output(ctx, &perf_events, COMPAT_BPF_F_CURRENT_CPU, data, sizeof(*data));
-
-    // clean
-    bpf_map_update_elem(&dropwatch_stackmap, &stackmap_key, &zero_data, COMPAT_BPF_EXIST);
-    return 0;
-}
-
-// the dropwatch case: syn_flood.
-SEC("kprobe/tcp_conn_request+1290")
-int bpf_tcp_syn_flood_action_prog(struct pt_regs *ctx)
-{
-    // the function of `tcp_syn_flood_action` arguments:
-    //  %r15: struct sock *sk
-    //  %r13: struct sk_buff *skb
-    struct sock *sk = (void *)ctx->r15;
-    struct sk_buff *skb= (void *)ctx->r13;
-
-    // ratelimit
-    if (bpf_ratelimited(ctx, rate))
-        return 0;
-
-    // fill
-    return fill_overflow_event(ctx, TYPE_TCP_SYN_FLOOD, sk, skb);
-}
-
-// the dropwatch case: listen-overflow in the TCP_CLOSE state(client: TCP_SYN_SENT).
-SEC("kprobe/tcp_conn_request+167")
-int bpf_tcp_listen_overflow_handshake1_prog(struct pt_regs *ctx)
-{
-    // this position has registers as follows:
-    //  %r15: struct sock *sk
-    //  %r13: struct sk_buff *skb
-    struct sock *sk = (void *)ctx->r15;
-    struct sk_buff *skb= (void *)ctx->r13;
-
-    // ratelimit
-    if (bpf_ratelimited(ctx, rate))
-        return 0;
-
-    // fill
-    return fill_overflow_event(ctx, TYPE_TCP_LISTEN_OVERFLOW_HANDSHAKE1, sk, skb);
-}
-
-// the dropwatch case: listen-overflow in the TCP_NEW_SYN_RECV state(client: TCP_ESTABLISHED).
-SEC("kprobe/tcp_v4_syn_recv_sock+700")
-int bpf_tcp_listen_overflow_handshake3_prog(struct pt_regs *ctx)
-{
-    // this position has registers as follows:
-    //  %rdi: struct sock *sk
-    //  %rsi: struct sk_buff *skb
-    //  %r15: struct request_sock *req
-    struct sock *sk = (void *)ctx->di;
-    struct sk_buff *skb= (void *)ctx->si;
-
-    // ratelimit
-    if (bpf_ratelimited(ctx, rate))
-        return 0;
-
-    // fill
-    return fill_overflow_event(ctx, TYPE_TCP_LISTEN_OVERFLOW_HANDSHAKE3, sk, skb);
-}
-#endif
