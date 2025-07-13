@@ -3,6 +3,7 @@ v2.0 - WIP
     - 支持指标、事件、 追踪 region 字段
     - 支持 softirq percpu 指标
     - 支持 golangci 静态检查
+    - 支持组件的 cgroupv2 资源限制 
 
 v1.0 - 2025-07-13
 ---------------------
