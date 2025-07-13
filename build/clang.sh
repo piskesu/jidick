@@ -6,7 +6,7 @@ usage() {
 USAGE: clang.sh -s <source.c> -o <output.o> -I [includes] -C '[compile_options]'
 EXAMPLE:
     clang.sh -s example.bpf.c -o example.o            # run preprocess, compile, and assemble steps (-C '-c')
-    clang.sh -s example.bpf.c -o example.o -I include -I include/4.18.0-193.6.3.el8_2.v1.3.x86_64 # specify the headers, (-C '-c')
+    clang.sh -s example.bpf.c -o example.o -I include -I include/4.18.0-193.6.3.el8_2.x86_64 # specify the headers, (-C '-c')
     clang.sh -s example.bpf.c -o example.o -C '-E'    # only run the preprocessor
     clang.sh -s example.bpf.c -o example.o -C '-S'    # only run preprocess and compilation steps"
 }
@@ -14,7 +14,7 @@ EXAMPLE:
 SRC=
 OBJ=
 INCLUDES=
-DEFAULT_INCLUDES="-I include -I include/4.18.0-193.6.3.el8_2.v1.2.x86_64"
+DEFAULT_INCLUDES="-I include -I include/4.18.0-193.6.3.el8_2.x86_64"
 COMPILE_OPTIONS=
 DEFAULT_COMPILE_OPTIONS="-Wall -O2 -g -target bpf -D__TARGET_ARCH_x86 -mcpu=v1 -c"
 
