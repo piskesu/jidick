@@ -47,7 +47,7 @@ type CollectorManager struct {
 	scrapeSuccessDesc  *prometheus.Desc
 }
 
-func NewCollectorManager(blackListed []string) (*CollectorManager, error) {
+func NewCollectorManager(blackListed []string, region string) (*CollectorManager, error) {
 	tracings, err := tracing.NewRegister(blackListed)
 	if err != nil {
 		return nil, err
@@ -79,6 +79,8 @@ func NewCollectorManager(blackListed []string) (*CollectorManager, error) {
 	)
 
 	hostname, _ := os.Hostname()
+	defaultRegion = region
+	defaultHostname = hostname
 
 	return &CollectorManager{
 		collectors:         collectors,

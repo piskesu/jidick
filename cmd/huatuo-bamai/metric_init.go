@@ -26,8 +26,8 @@ import (
 var promNamespace = "huatuo_bamai"
 
 // InitMetricsCollector creates a new MetricsCollector instance.
-func InitMetricsCollector(blackListed []string) (*prometheus.Registry, error) {
-	nc, err := metric.NewCollectorManager(blackListed)
+func InitMetricsCollector(blackListed []string, region string) (*prometheus.Registry, error) {
+	nc, err := metric.NewCollectorManager(blackListed, region)
 	if err != nil {
 		return nil, fmt.Errorf("create collector: %w", err)
 	}

@@ -92,7 +92,7 @@ func mainAction(ctx *cli.Context) error {
 		return err
 	}
 
-	prom, err := InitMetricsCollector(blackListed)
+	prom, err := InitMetricsCollector(blackListed, conf.Region)
 	if err != nil {
 		return fmt.Errorf("InitMetricsCollector: %w", err)
 	}

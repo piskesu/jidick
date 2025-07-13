@@ -17,7 +17,6 @@ package metric
 import (
 	"errors"
 	"fmt"
-	"os"
 	"sort"
 	"sync"
 
@@ -26,11 +25,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-var hostname string
-
-func init() {
-	hostname, _ = os.Hostname()
-}
+var (
+	// FIXME If you use this package to other project.
+	defaultHostname string
+	defaultRegion   string
+)
 
 const (
 	// MetricTypeGauge indicates a gauge metric.
@@ -40,6 +39,8 @@ const (
 
 	// LabelHost indicates the host.
 	LabelHost = "Host"
+	// LabelRegion indicates the data collected from.
+	LabelRegion = "Region"
 	// LabelContainerName indicates the container name.
 	LabelContainerName = "ContainerName"
 	// LabelContainerHost indicates the container host.
@@ -94,8 +95,8 @@ func NewGaugeData(name string, value float64, help string, label map[string]stri
 		help:       help,
 	}
 
-	data.labelKey = append(data.labelKey, LabelHost)
-	data.labelValue = append(data.labelValue, hostname)
+	data.labelKey = append(data.labelKey, LabelRegion, LabelHost)
+	data.labelValue = append(data.labelValue, defaultRegion, defaultHostname)
 
 	// sort the labelKey
 	selfLabelKeys := make([]string, 0, len(label))
@@ -127,6 +128,7 @@ func NewContainerGaugeData(container *pod.Container, name string, value float64,
 
 	// default label
 	data.labelKey = append(data.labelKey,
+		LabelRegion,
 		LabelContainerHost,
 		LabelContainerName,
 		LabelContainerType,
@@ -134,12 +136,13 @@ func NewContainerGaugeData(container *pod.Container, name string, value float64,
 		LabelContainerHostNamespace,
 		LabelHost)
 	data.labelValue = append(data.labelValue,
+		defaultRegion,
 		container.Hostname,
 		container.Name,
 		container.Type.String(),
 		container.Qos.String(),
 		container.LabelHostNamespace(),
-		hostname)
+		defaultHostname)
 
 	// sort the labelKey
 	selfLabelKeys := make([]string, 0, len(label))
