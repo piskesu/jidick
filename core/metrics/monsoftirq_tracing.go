@@ -19,42 +19,148 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"time"
+	"strconv"
 
 	"huatuo-bamai/internal/bpf"
-	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/utils/bpfutil"
+	"huatuo-bamai/pkg/metric"
 	"huatuo-bamai/pkg/tracing"
+
+	"github.com/tklauser/numcpus"
 )
 
 func init() {
-	tracing.RegisterEventTracing("monsoftirq", newSoftirqCollector)
+	tracing.RegisterEventTracing("softirq", newSoftirq)
 }
 
-func newSoftirqCollector() (*tracing.EventTracingAttr, error) {
+func newSoftirq() (*tracing.EventTracingAttr, error) {
+	num, err := numcpus.GetPossible()
+	if err != nil {
+		return nil, fmt.Errorf("fetch possible cpu num")
+	}
+
 	return &tracing.EventTracingAttr{
-		TracingData: &monsoftirqTracing{},
-		Internal:    10,
-		Flag:        tracing.FlagTracing | tracing.FlagMetric,
+		TracingData: &softirqLatency{
+			bpf:       nil,
+			isRunning: false,
+			cpu:       num,
+		},
+		Internal: 10,
+		Flag:     tracing.FlagTracing | tracing.FlagMetric,
 	}, nil
 }
 
 //go:generate $BPF_COMPILE $BPF_INCLUDE -s $BPF_DIR/monsoftirq_tracing.c -o $BPF_DIR/monsoftirq_tracing.o
 
-type monsoftirqBpfData struct {
-	SoftirqLat [softirqArrayMax][latZoneMax]uint64
+type softirqLatency struct {
+	bpf       bpf.BPF
+	isRunning bool
+	cpu       int
 }
 
-type monsoftirqTracing struct{}
+type softirqLatencyData struct {
+	Timestamp    uint64
+	TotalLatency [4]uint64
+}
 
-var monsoftirqData monsoftirqBpfData
+const (
+	softirqHi = iota
+	softirqTime
+	softirqNetTx
+	softirqNetRx
+	softirqBlock
+	softirqIrqPoll
+	softirqTasklet
+	softirqSched
+	softirqHrtimer
+	sofirqRcu
+	softirqMax
+)
 
-// Start monsoftirq work, load bpf and wait data form perfevent
-func (c *monsoftirqTracing) Start(ctx context.Context) error {
-	// load bpf.
+func irqTypeName(id int) string {
+	switch id {
+	case softirqHi:
+		return "HI"
+	case softirqTime:
+		return "TIMER"
+	case softirqNetTx:
+		return "NET_TX"
+	case softirqNetRx:
+		return "NET_RX"
+	case softirqBlock:
+		return "BLOCK"
+	case softirqIrqPoll:
+		return "IRQ_POLL"
+	case softirqTasklet:
+		return "TASKLET"
+	case softirqSched:
+		return "SCHED"
+	case softirqHrtimer:
+		return "HRTIMER"
+	case sofirqRcu:
+		return "RCU"
+	default:
+		return "ERR_TYPE"
+	}
+}
+
+func irqAllowed(id int) bool {
+	switch id {
+	case softirqNetTx, softirqNetRx:
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *softirqLatency) Update() ([]*metric.Data, error) {
+	if !s.isRunning {
+		return nil, nil
+	}
+
+	items, err := s.bpf.DumpMapByName("softirq_percpu_lats")
+	if err != nil {
+		return nil, fmt.Errorf("dump map: %w", err)
+	}
+
+	labels := make(map[string]string)
+	metricData := []*metric.Data{}
+
+	// IRQ: 0 ... NR_SOFTIRQS_MAX
+	for _, item := range items {
+		var irqVector uint32
+		latencyOnAllCPU := make([]softirqLatencyData, s.cpu)
+
+		if err = binary.Read(bytes.NewReader(item.Key), binary.LittleEndian, &irqVector); err != nil {
+			return nil, fmt.Errorf("read map key: %w", err)
+		}
+
+		if !irqAllowed(int(irqVector)) {
+			continue
+		}
+
+		if err = binary.Read(bytes.NewReader(item.Value), binary.LittleEndian, &latencyOnAllCPU); err != nil {
+			return nil, fmt.Errorf("read map value: %w", err)
+		}
+
+		labels["type"] = irqTypeName(int(irqVector))
+
+		for cpuid, lat := range latencyOnAllCPU {
+			labels["cpuid"] = strconv.Itoa(cpuid)
+			for zoneid, zone := range lat.TotalLatency {
+				labels["zone"] = strconv.Itoa(zoneid)
+				metricData = append(metricData, metric.NewGaugeData("latency", float64(zone), "softirq latency", labels))
+			}
+		}
+	}
+
+	return metricData, nil
+}
+
+func (s *softirqLatency) Start(ctx context.Context) error {
 	b, err := bpf.LoadBpf(bpfutil.ThisBpfOBJ(), nil)
 	if err != nil {
-		return fmt.Errorf("failed to LoadBpf, err: %w", err)
+		return err
 	}
 	defer b.Close()
 
@@ -62,31 +168,16 @@ func (c *monsoftirqTracing) Start(ctx context.Context) error {
 		return err
 	}
 
+	s.bpf = b
+	s.isRunning = true
+
 	childCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	b.WaitDetachByBreaker(childCtx, cancel)
 
-	ticker := time.NewTicker(2 * time.Second)
-	defer ticker.Stop()
+	<-childCtx.Done()
 
-	monTracerIsRunning = true
-	defer func() { monTracerIsRunning = false }()
-
-	for {
-		select {
-		case <-childCtx.Done():
-			return nil
-		case <-ticker.C:
-			item, err := b.ReadMap(b.MapIDByName("softirq_lats"), []byte{0, 0, 0, 0})
-			if err != nil {
-				return fmt.Errorf("failed to read softirq_lats: %w", err)
-			}
-			buf := bytes.NewReader(item)
-			if err = binary.Read(buf, binary.LittleEndian, &monsoftirqData); err != nil {
-				log.Errorf("can't read softirq_lats: %v", err)
-				return err
-			}
-		}
-	}
+	s.isRunning = false
+	return nil
 }

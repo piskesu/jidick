@@ -121,7 +121,6 @@ int sched_wakeup_entry(struct sched_wakeup_new_args *ctx)
 	return trace_enqueue(ctx->pid);
 }
 
-#define NSEC_PER_MSEC 1000000L
 SEC("raw_tracepoint/sched_switch")
 int sched_switch_entry(struct bpf_raw_tracepoint_args *ctx)
 {
