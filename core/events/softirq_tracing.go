@@ -29,7 +29,7 @@ import (
 	"huatuo-bamai/pkg/tracing"
 )
 
-//go:generate $BPF_COMPILE $BPF_INCLUDE -s $BPF_DIR/softirq.c -o $BPF_DIR/softirq.o
+//go:generate $BPF_COMPILE $BPF_INCLUDE -s $BPF_DIR/softirq_tracing.c -o $BPF_DIR/softirq_tracing.o
 
 type softirqTracing struct{}
 
@@ -55,7 +55,7 @@ type SoftirqTracingData struct {
 }
 
 func init() {
-	tracing.RegisterEventTracing("softirq", newSoftirq)
+	tracing.RegisterEventTracing("softirq_tracing", newSoftirq)
 }
 
 func newSoftirq() (*tracing.EventTracingAttr, error) {
