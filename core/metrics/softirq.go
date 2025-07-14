@@ -34,16 +34,22 @@ func init() {
 }
 
 func newSoftirq() (*tracing.EventTracingAttr, error) {
-	num, err := numcpus.GetPossible()
+	cpuPossible, err := numcpus.GetPossible()
+	if err != nil {
+		return nil, fmt.Errorf("fetch possible cpu num")
+	}
+
+	cpuOnline, err := numcpus.GetOnline()
 	if err != nil {
 		return nil, fmt.Errorf("fetch possible cpu num")
 	}
 
 	return &tracing.EventTracingAttr{
 		TracingData: &softirqLatency{
-			bpf:       nil,
-			isRunning: false,
-			cpu:       num,
+			bpf:         nil,
+			isRunning:   false,
+			cpuPossible: cpuPossible,
+			cpuOnline:   cpuOnline,
 		},
 		Internal: 10,
 		Flag:     tracing.FlagTracing | tracing.FlagMetric,
@@ -53,9 +59,10 @@ func newSoftirq() (*tracing.EventTracingAttr, error) {
 //go:generate $BPF_COMPILE $BPF_INCLUDE -s $BPF_DIR/softirq.c -o $BPF_DIR/softirq.o
 
 type softirqLatency struct {
-	bpf       bpf.BPF
-	isRunning bool
-	cpu       int
+	bpf         bpf.BPF
+	isRunning   bool
+	cpuPossible int
+	cpuOnline   int
 }
 
 type softirqLatencyData struct {
@@ -129,7 +136,7 @@ func (s *softirqLatency) Update() ([]*metric.Data, error) {
 	// IRQ: 0 ... NR_SOFTIRQS_MAX
 	for _, item := range items {
 		var irqVector uint32
-		latencyOnAllCPU := make([]softirqLatencyData, s.cpu)
+		latencyOnAllCPU := make([]softirqLatencyData, s.cpuPossible)
 
 		if err = binary.Read(bytes.NewReader(item.Key), binary.LittleEndian, &irqVector); err != nil {
 			return nil, fmt.Errorf("read map key: %w", err)
@@ -146,6 +153,9 @@ func (s *softirqLatency) Update() ([]*metric.Data, error) {
 		labels["type"] = irqTypeName(int(irqVector))
 
 		for cpuid, lat := range latencyOnAllCPU {
+			if cpuid >= s.cpuOnline {
+				break
+			}
 			labels["cpuid"] = strconv.Itoa(cpuid)
 			for zoneid, zone := range lat.TotalLatency {
 				labels["zone"] = strconv.Itoa(zoneid)
