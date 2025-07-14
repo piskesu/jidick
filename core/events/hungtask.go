@@ -17,11 +17,11 @@ package events
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
 	"huatuo-bamai/internal/bpf"
-	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/storage"
 	"huatuo-bamai/internal/utils/bpfutil"
 	"huatuo-bamai/internal/utils/kmsgutil"
@@ -49,6 +49,12 @@ type hungTaskTracing struct {
 }
 
 func init() {
+	// Some OS distributions such as Fedora-42 may disable this feature.
+	hungTaskSysctl := "/proc/sys/kernel/hung_task_timeout_secs"
+	if _, err := os.Stat(hungTaskSysctl); err != nil {
+		return
+	}
+
 	tracing.RegisterEventTracing("hungtask", newHungTask)
 }
 
@@ -75,7 +81,6 @@ func (c *hungTaskTracing) Update() ([]*metric.Data, error) {
 func (c *hungTaskTracing) Start(ctx context.Context) error {
 	b, err := bpf.LoadBpf(bpfutil.ThisBpfOBJ(), nil)
 	if err != nil {
-		log.Infof("failed to LoadBpf, err: %v", err)
 		return err
 	}
 	defer b.Close()
@@ -85,7 +90,6 @@ func (c *hungTaskTracing) Start(ctx context.Context) error {
 
 	reader, err := b.AttachAndEventPipe(childCtx, "hungtask_perf_events", 8192)
 	if err != nil {
-		log.Infof("failed to AttachAndEventPipe, err: %v", err)
 		return err
 	}
 	defer reader.Close()
@@ -99,7 +103,7 @@ func (c *hungTaskTracing) Start(ctx context.Context) error {
 		default:
 			var data hungTaskPerfEventData
 			if err := reader.ReadInto(&data); err != nil {
-				return fmt.Errorf("ReadFromPerfEvent fail: %w", err)
+				return fmt.Errorf("hungtask ReadFromPerfEvent: %w", err)
 			}
 
 			cpusBT, err := kmsgutil.GetAllCPUsBT()
