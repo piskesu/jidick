@@ -45,7 +45,7 @@ type HungTaskTracerData struct {
 }
 
 type hungTaskTracing struct {
-	hungtaskMetric []*metric.Data
+	metric []*metric.Data
 }
 
 func init() {
@@ -61,8 +61,8 @@ func init() {
 func newHungTask() (*tracing.EventTracingAttr, error) {
 	return &tracing.EventTracingAttr{
 		TracingData: &hungTaskTracing{
-			hungtaskMetric: []*metric.Data{
-				metric.NewGaugeData("happened", 0, "hungtask happened", nil),
+			metric: []*metric.Data{
+				metric.NewGaugeData("count", 0, "hungtask counter", nil),
 			},
 		},
 		Internal: 10,
@@ -73,9 +73,8 @@ func newHungTask() (*tracing.EventTracingAttr, error) {
 var hungtaskCounter float64
 
 func (c *hungTaskTracing) Update() ([]*metric.Data, error) {
-	c.hungtaskMetric[0].Value = hungtaskCounter
-	hungtaskCounter = 0
-	return c.hungtaskMetric, nil
+	c.metric[0].Value = hungtaskCounter
+	return c.metric, nil
 }
 
 func (c *hungTaskTracing) Start(ctx context.Context) error {
@@ -110,6 +109,7 @@ func (c *hungTaskTracing) Start(ctx context.Context) error {
 			if err != nil {
 				cpusBT = err.Error()
 			}
+
 			blockedProcessesBT, err := kmsgutil.GetBlockedProcessesBT()
 			if err != nil {
 				blockedProcessesBT = err.Error()
@@ -121,6 +121,7 @@ func (c *hungTaskTracing) Start(ctx context.Context) error {
 				CPUsStack:             cpusBT,
 				BlockedProcessesStack: blockedProcessesBT,
 			}
+
 			hungtaskCounter++
 
 			// save storage
