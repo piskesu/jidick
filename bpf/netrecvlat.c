@@ -21,16 +21,6 @@ volatile const long long to_user_copy	  = 115 * 1000 * 1000; // 115ms
 
 BPF_RATELIMIT(rate, 1, 100);
 
-struct netif_receive_skb_args {
-	struct trace_entry entry;
-	struct sk_buff *skb;
-};
-
-struct skb_copy_datagram_iovec_args {
-	struct trace_entry entry;
-	struct sk_buff *skb;
-};
-
 struct perf_event_t {
 	char comm[COMPAT_TASK_COMM_LEN];
 	u64 latency;
@@ -115,9 +105,9 @@ fill_and_output_event(void *ctx, struct sk_buff *skb, struct mix *_mix)
 }
 
 SEC("tracepoint/net/netif_receive_skb")
-int netif_receive_skb_prog(struct netif_receive_skb_args *args)
+int netif_receive_skb_prog(struct trace_event_raw_net_dev_template *args)
 {
-	struct sk_buff *skb = args->skb;
+	struct sk_buff *skb = (struct sk_buff *)args->skbaddr;
 	struct iphdr ip_hdr;
 	u64 delta;
 
@@ -159,9 +149,10 @@ int tcp_v4_rcv_prog(struct pt_regs *ctx)
 }
 
 SEC("tracepoint/skb/skb_copy_datagram_iovec")
-int skb_copy_datagram_iovec_prog(struct skb_copy_datagram_iovec_args *args)
+int skb_copy_datagram_iovec_prog(
+    struct trace_event_raw_skb_copy_datagram_iovec *args)
 {
-	struct sk_buff *skb = args->skb;
+	struct sk_buff *skb = (struct sk_buff *)args->skbaddr;
 	struct iphdr ip_hdr;
 	u64 delta;
 

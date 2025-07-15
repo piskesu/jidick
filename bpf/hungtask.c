@@ -23,14 +23,8 @@ struct hungtask_info {
 	char comm[COMPAT_TASK_COMM_LEN];
 };
 
-struct tracepoint_args {
-	unsigned long pad;
-	char comm[COMPAT_TASK_COMM_LEN];
-	int pid;
-};
-
 SEC("tracepoint/sched/sched_process_hang")
-int tracepoint_sched_process_hang(struct tracepoint_args *ctx)
+int tracepoint_sched_process_hang(struct trace_event_raw_sched_process_hang *ctx)
 {
 	struct hungtask_info info = {};
 

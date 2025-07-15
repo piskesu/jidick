@@ -14,11 +14,6 @@ enum lat_zone {
 	LAT_ZONE_MAX,
 };
 
-struct tp_softirq {
-	unsigned long long pad;
-	unsigned int vec;
-};
-
 struct softirq_lat {
 	u64 timestamp;
 	u64 total_latency[LAT_ZONE_MAX];
@@ -32,7 +27,7 @@ struct {
 } softirq_percpu_lats SEC(".maps");
 
 SEC("tracepoint/irq/softirq_raise")
-int probe_softirq_raise(struct tp_softirq *ctx)
+int probe_softirq_raise(struct trace_event_raw_softirq *ctx)
 {
 	struct softirq_lat lat = {
 		.timestamp = bpf_ktime_get_ns(),
@@ -47,7 +42,7 @@ int probe_softirq_raise(struct tp_softirq *ctx)
 }
 
 SEC("tracepoint/irq/softirq_entry")
-int probe_softirq_entry(struct tp_softirq *ctx)
+int probe_softirq_entry(struct trace_event_raw_softirq *ctx)
 {
 	struct softirq_lat *lat;
 	u32 vec = ctx->vec;

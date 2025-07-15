@@ -32,15 +32,6 @@ struct perf_event_t {
 	char comm[COMPAT_TASK_COMM_LEN];
 };
 
-/* format: /sys/kernel/debug/tracing/events/skb/kfree_skb/format */
-struct kfree_skb_args {
-	unsigned long long pad;
-
-	void *skbaddr;
-	void *location;
-	u16 protocol;
-};
-
 struct {
 	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
 	__uint(key_size, sizeof(int));
@@ -116,7 +107,7 @@ static void sk_get_type_and_protocol(struct sock *sk, u16 *protocol, u16 *type)
 }
 
 SEC("tracepoint/skb/kfree_skb")
-int bpf_kfree_skb_prog(struct kfree_skb_args *ctx)
+int bpf_kfree_skb_prog(struct trace_event_raw_kfree_skb *ctx)
 {
 	struct sk_buff *skb	  = ctx->skbaddr;
 	struct perf_event_t *data = NULL;

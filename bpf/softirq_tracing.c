@@ -120,14 +120,8 @@ void probe_scheduler_tick(struct pt_regs *ctx)
 	ts->soft_ts = now;
 }
 
-struct tp_tick_stop {
-	unsigned long pad;
-	int success;
-	int dependency;
-};
-
 SEC("tracepoint/timer/tick_stop")
-void probe_tick_stop(struct tp_tick_stop *ctx)
+void probe_tick_stop(struct trace_event_raw_tick_stop *ctx)
 {
 	struct timer_softirq_run_ts *ts;
 	int key = 0;

@@ -91,17 +91,8 @@ static int trace_enqueue(u32 pid)
 	return 0;
 }
 
-struct sched_wakeup_new_args {
-	unsigned long long pad;
-	char comm[16];
-	int pid;
-	int prio;
-	int success;
-	int target_cpu;
-};
-
 SEC("tracepoint/sched/sched_wakeup_new")
-int sched_wakeup_new_entry(struct sched_wakeup_new_args *ctx)
+int sched_wakeup_new_entry(struct trace_event_raw_sched_wakeup_template *ctx)
 {
 	return trace_enqueue(ctx->pid);
 }
@@ -116,7 +107,7 @@ struct sched_wakeup_args {
 };
 
 SEC("tracepoint/sched/sched_wakeup")
-int sched_wakeup_entry(struct sched_wakeup_new_args *ctx)
+int sched_wakeup_entry(struct trace_event_raw_sched_wakeup_template *ctx)
 {
 	return trace_enqueue(ctx->pid);
 }
