@@ -22,31 +22,7 @@
 
 - **快速搭建**
 如果你想更进一步了解 HUATUO 运行机制，架构设计等，可在本地很方便地搭建 HUATUO 完整运行的所有组件，我们提供容器镜像以及简单配置，方便用户开发者快速了解 HUATUO。
-    ```mermaid
-    flowchart LR
-        subgraph host[宿主机]
-            subgraph huatuo-bamai[huatuo-bamai]
-                A1[【metrics】] <-- "transfer" --> A2[【tracing】]
-            end
-        end
-
-        subgraph storage backends[存储后端]
-        A1 -->|:19704| B1[prometheus]
-        A2 -->|:9200| B2[elasticsearch]
-        end
-        
-        subgraph grafana_dashboard["grafana 监控大盘"]
-        B1 -->|:9090| C1[host, container]
-        B2 -->|:9200| C2[autotracing, events]
-        end
-        
-        subgraph browser[浏览器]
-        D[:3000]
-        end
-        
-        C1 --> D
-        C2 --> D
-    ```
+    ![](./docs/quick-start-cn.png)
     <div style="text-align: center; margin: 8px 0 20px 0; color: #777;">
     <small>
     HUATUO 组件运行示意图<br>

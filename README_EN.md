@@ -21,31 +21,7 @@ If you only care about the underlying principles and not about storage backends 
 
 - **Quick Setup​**
 If you want to dive deeper into HUATO's operation mechanisms and architecture, you can easily set up all components locally. We provide container images and simple configurations for developers to quickly understand HUATO.
-    ```mermaid
-    flowchart LR
-        subgraph host[host]
-            subgraph huatuo-bamai[huatuo-bamai]
-                A1[【metrics】] <-- "transfer" --> A2[【tracing】]
-            end
-        end
-
-        subgraph storage backends[storage backends]
-        A1 -->|:19704| B1[prometheus]
-        A2 -->|:9200| B2[elasticsearch]
-        end
-        
-        subgraph grafana_dashboard["grafana panels"]
-        B1 -->|:9090| C1[host, container]
-        B2 -->|:9200| C2[autotracing, events]
-        end
-        
-        subgraph browser[browser]
-        D[:3000]
-        end
-        
-        C1 --> D
-        C2 --> D
-    ```
+    ![](./docs/quick-start-en.png)
     <div style="text-align: center; margin: 8px 0 20px 0; color: #777;">
     <small>
     HUATUO Component Workflow<br>
