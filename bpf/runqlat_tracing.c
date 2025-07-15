@@ -306,8 +306,8 @@ int sched_process_exit_entry(struct bpf_raw_tracepoint_args *ctx)
 
 #ifdef TG_ADDR_KEY
 // When cgroup is removed, the record should be deleted.
-SEC("kprobe/sched_free_group")
-int sched_free_group_entry(struct pt_regs *ctx)
+SEC("kprobe/free_fair_sched_group")
+int free_fair_sched_group_entry(struct pt_regs *ctx)
 {
 	struct task_group *tg = (void *)PT_REGS_PARM1(ctx);
 	struct stat_t *entry;
