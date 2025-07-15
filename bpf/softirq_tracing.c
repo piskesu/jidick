@@ -58,8 +58,8 @@ struct {
 	__uint(value_size, sizeof(u32));
 } irqoff_event_map SEC(".maps");
 
-SEC("kprobe/scheduler_tick")
-void probe_scheduler_tick(struct pt_regs *ctx)
+SEC("kprobe/account_process_tick")
+void probe_account_process_tick(struct pt_regs *ctx)
 {
 	// verify bpf-ratelimit
 	if (bpf_ratelimited(&rate))

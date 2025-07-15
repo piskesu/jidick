@@ -169,8 +169,8 @@ func attachIrqAndEventPipe(ctx context.Context, b bpf.BPF) (bpf.PerfEventReader,
 	 */
 	if err := b.AttachWithOptions([]bpf.AttachOption{
 		{
-			ProgramName: "probe_scheduler_tick",
-			Symbol:      "scheduler_tick",
+			ProgramName: "probe_account_process_tick",
+			Symbol:      "account_process_tick",
 		},
 		{
 			ProgramName: "probe_tick_nohz_restart_sched_tick",
