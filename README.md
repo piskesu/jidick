@@ -24,23 +24,23 @@
 如果你想更进一步了解 HUATUO 运行机制，架构设计等，可在本地很方便地搭建 HUATUO 完整运行的所有组件，我们提供容器镜像以及简单配置，方便用户开发者快速了解 HUATUO。
     ```mermaid
     flowchart LR
-        subgraph host
-            subgraph huatuo-bamai
+        subgraph host[宿主机]
+            subgraph huatuo-bamai[huatuo-bamai]
                 A1[【metrics】] <-- "transfer" --> A2[【tracing】]
             end
         end
 
-        subgraph storage backends
+        subgraph storage backends[存储后端]
         A1 -->|:19704| B1[prometheus]
         A2 -->|:9200| B2[elasticsearch]
         end
         
-        subgraph grafana_dashboard["grafana panels"]
+        subgraph grafana_dashboard["grafana 监控大盘"]
         B1 -->|:9090| C1[host, container]
         B2 -->|:9200| C2[autotracing, events]
         end
         
-        subgraph browser
+        subgraph browser[浏览器]
         D[:3000]
         end
         
@@ -49,11 +49,11 @@
     ```
     <div style="text-align: center; margin: 8px 0 20px 0; color: #777;">
     <small>
-    HUATUO 组件运行示意<br>
+    HUATUO 组件运行示意图<br>
     </small>
     </div>
 
-    为快速搭建运行环境，我们提供一键运行的方式，该命令会启动 elasticsearch, prometheus, grafana 以及 huatuo-bamai 组件。命令执行成功后，打开浏览器访问 http://localhost:3000 即可浏览监控大盘。
+    为快速搭建运行环境，我们提供一键运行的方式，该命令会启动 [elasticsearch](https://www.elastic.co), [prometheus](https://prometheus.io), [grafana](https://grafana.com) 以及 huatuo-bamai 组件。命令执行成功后，打开浏览器访问 [http://localhost:3000](http://localhost:3000) 即可浏览监控大盘。
 
     ```bash
     $ docker compose --project-directory ./build/docker up

@@ -12,15 +12,49 @@ HuaTuo also integrates core technologies such as automated tracing, profiling, a
 - **Smooth Transition** to Popular Observability Stacks: Provides standard data sources for Prometheus and Pyroscope, integrates with Kubernetes container resources, and automatically correlates Kubernetes labels/annotations with kernel event metrics, eliminating data silos, ensuring seamless integration and analysis across various data sources for comprehensive system monitoring.
 
 # Getting Started
-## run
-HuaTuo provides a convenient way for quick getting started, all in one command as below:
-```bash
-$ docker compose --project-directory ./build/docker up
-```
-Run it in the project root directory, then open [http://localhost:3000](http://localhost:3000) to view the panels on your browser.
+- **​Instant Experience​**
+If you only care about the underlying principles and not about storage backends or frontend display, we provide a pre-built image containing all necessary components for HUATO's core operation. Just run:
 
-The upper command starts three dependencies containers: [elasticsearch](https://www.elastic.co), [prometheus](https://prometheus.io), [grafana](https://grafana.com), then compiles and starts huatuo-bamai.
-- Data related to event-driven operations, such as Autotracing and Events, are stored in elasticsearch
+    ```bash
+    $ docker run --privileged --network=host -v /sys:/sys -v /run:/run huatuo/huatuo-bamai:latest
+    ```
+
+- **Quick Setup​**
+If you want to dive deeper into HUATO's operation mechanisms and architecture, you can easily set up all components locally. We provide container images and simple configurations for developers to quickly understand HUATO.
+    ```mermaid
+    flowchart LR
+        subgraph host[host]
+            subgraph huatuo-bamai[huatuo-bamai]
+                A1[【metrics】] <-- "transfer" --> A2[【tracing】]
+            end
+        end
+
+        subgraph storage backends[storage backends]
+        A1 -->|:19704| B1[prometheus]
+        A2 -->|:9200| B2[elasticsearch]
+        end
+        
+        subgraph grafana_dashboard["grafana panels"]
+        B1 -->|:9090| C1[host, container]
+        B2 -->|:9200| C2[autotracing, events]
+        end
+        
+        subgraph browser[browser]
+        D[:3000]
+        end
+        
+        C1 --> D
+        C2 --> D
+    ```
+    <div style="text-align: center; margin: 8px 0 20px 0; color: #777;">
+    <small>
+    HUATUO Component Workflow<br>
+    </small>
+    </div>
+
+    For a quick setup, we provide a one-command solution to launch [elasticsearch](https://www.elastic.co), [prometheus](https://prometheus.io), [grafana](https://grafana.com) and huatuo-bamai. Once executed, click [http://localhost:3000](http://localhost:3000)​ to view the monitoring dashboards on your browser.
+
+- Data related to event-driven operations Autotracing and Events, are stored in elasticsearch
 - Metrics-related data is actively collected and stored by prometheus
 - elasticsearch data reporting port: 9200
 - prometheus data source port: 9090
