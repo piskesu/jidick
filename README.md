@@ -17,11 +17,27 @@
 
 
 # 快速上手
-为用户开发者快速体验 HUATUO， 我们提供容器编译镜像的便捷方式，一键运行 docker compose 即可启动。该命令会启动 elasticsearch, prometheus, grafana 以及编译的 huatuo-bamai 组件。上述命令执行成功后，打开浏览器访问 http://localhost:3000 即可浏览监控大盘。
 
-```bash
-$ docker compose --project-directory ./build/docker up
-```
+- **极速体验**
+如果你只关心底层原理，不关心存储、前端展示等，我们提供了编译好的镜像，已包含 HUATUO 底层运行的必要组件，直接运行即可：
+    ```bash
+    $ docker run --privileged --network=host -v /sys:/sys -v /run:/run huatuo/huatuo-bamai:latest
+    ```
+
+- **快速搭建**
+如果你想更进一步了解 HUATUO 运行机制，架构设计等，可在本地很方便地搭建 HUATUO 完整运行的所有组件，我们提供容器镜像以及简单配置，方便用户开发者快速了解 HUATUO。
+    ![](./docs/quick-start-cn.png)
+    <div style="text-align: center; margin: 8px 0 20px 0; color: #777;">
+    <small>
+    HUATUO 组件运行示意图<br>
+    </small>
+    </div>
+
+    为快速搭建运行环境，我们提供一键运行的方式，该命令会启动 [elasticsearch](https://www.elastic.co), [prometheus](https://prometheus.io), [grafana](https://grafana.com) 以及 huatuo-bamai 组件。命令执行成功后，打开浏览器访问 [http://localhost:3000](http://localhost:3000) 即可浏览监控大盘。
+
+    ```bash
+    $ docker compose --project-directory ./build/docker up
+    ```
 
 # 软件架构
 ![](./docs/huatuo-arch-v2.png)

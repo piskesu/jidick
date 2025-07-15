@@ -30,21 +30,20 @@ services:
       - elasticsearch
 
   huatuo-bamai:
-    build:
-      context: ./../../ # compile required in Dockerfile
-      dockerfile: ./build/docker/Dockerfile
+    image: huatuo/huatuo-bamai:latest
     container_name: huatuo-bamai
     network_mode: host
     privileged: true
     environment:
       ELASTICSEARCH_HOST: ${ELASTICSEARCH_HOST:-}
       ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:-}
-      BUILD_PATH: ${BUILD_PATH:-}
       RUN_PATH: ${RUN_PATH:-}
     volumes:
-      - ../../:${BUILD_PATH}:rw # src
-      - ./run.sh:${RUN_PATH}/run.sh:ro # run
-      - /sys/kernel:/sys/kernel
+      - /sys:/sys
+      - /run:/run
+      - ../../huatuo-bamai.conf:${RUN_PATH}/huatuo-bamai.conf:rw
+      - ./run.sh:${RUN_PATH}/run.sh:ro
+    command: ["./run.sh"]
     depends_on:
       - elasticsearch
       - prometheus
