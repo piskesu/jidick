@@ -32,6 +32,9 @@ type CommonConf struct {
 	LogLevel string `default:"Info"`
 	LogFile  string
 
+	// Blacklist for tracing and metrics
+	Blacklist []string
+
 	// APIServer addr
 	APIServer struct {
 		TCPAddr string `default:":19704"`
@@ -79,9 +82,6 @@ type CommonConf struct {
 	}
 
 	Tracing struct {
-		// backlist
-		BlackList []string
-
 		// Cpuidle for cpuidle configuration
 		Cpuidle struct {
 			CgUserth            uint64
@@ -176,9 +176,6 @@ type CommonConf struct {
 	}
 
 	MetricCollector struct {
-		// backlist
-		BlackList []string
-
 		Netdev struct {
 			// Use `netlink` instead of `procfs net/dev` to get netdev statistic.
 			// Only support the host environment to use `netlink` now!

@@ -82,13 +82,13 @@ func mainAction(ctx *cli.Context) error {
 		return fmt.Errorf("init pod cgroup metadata: %w", err)
 	}
 
-	blackListed := conf.Get().Tracing.BlackList
-	prom, err := InitMetricsCollector(blackListed, conf.Region)
+	blacklisted := conf.Get().Blacklist
+	prom, err := InitMetricsCollector(blacklisted, conf.Region)
 	if err != nil {
 		return fmt.Errorf("InitMetricsCollector: %w", err)
 	}
 
-	mgr, err := tracing.NewMgrTracingEvent(blackListed)
+	mgr, err := tracing.NewMgrTracingEvent(blacklisted)
 	if err != nil {
 		return err
 	}
@@ -164,7 +164,7 @@ func main() {
 		},
 		&cli.StringSliceFlag{
 			Name:  "disable-tracing",
-			Usage: "disable tracing. This is related to TracerConfig.BlackList in config, and complement each other",
+			Usage: "disable tracing. This is related to Blacklist in config, and complement each other",
 		},
 		&cli.BoolFlag{
 			Name:  "log-debug",
@@ -200,11 +200,11 @@ func main() {
 		// tracer
 		disabledTracing := ctx.StringSlice("disable-tracing")
 		if len(disabledTracing) > 0 {
-			definedTracers := conf.Get().Tracing.BlackList
+			definedTracers := conf.Get().Blacklist
 			definedTracers = append(definedTracers, disabledTracing...)
 
-			conf.Set("TracerConfig.BlackList", definedTracers)
-			log.Infof("The tracer black list by cli: %v", conf.Get().Tracing.BlackList)
+			conf.Set("Blacklist", definedTracers)
+			log.Infof("The tracer black list by cli: %v", conf.Get().Blacklist)
 		}
 
 		if ctx.Bool("log-debug") {
