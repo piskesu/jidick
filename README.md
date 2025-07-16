@@ -21,7 +21,7 @@
 - **极速体验**
 如果你只关心底层原理，不关心存储、前端展示等，我们提供了编译好的镜像，已包含 HUATUO 底层运行的必要组件，直接运行即可：
     ```bash
-    $ docker run --privileged --network=host -v /sys:/sys -v /run:/run huatuo/huatuo-bamai:latest
+    $ docker run --privileged --cgroupns=host --network=host -v /sys:/sys -v /run:/run huatuo/huatuo-bamai:latest
     ```
 
 - **快速搭建**

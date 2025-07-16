@@ -33,14 +33,15 @@ services:
     image: huatuo/huatuo-bamai:latest
     container_name: huatuo-bamai
     network_mode: host
+    cgroup: host
     privileged: true
     environment:
       ELASTICSEARCH_HOST: ${ELASTICSEARCH_HOST:-}
       ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:-}
       RUN_PATH: ${RUN_PATH:-}
     volumes:
-      - /sys:/sys
-      - /run:/run
+      - /sys:/sys:rw
+      - /run:/run:rw
       - ../../huatuo-bamai.conf:${RUN_PATH}/huatuo-bamai.conf:rw
       - ./run.sh:${RUN_PATH}/run.sh:ro
     command: ["./run.sh"]

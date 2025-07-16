@@ -16,7 +16,7 @@ HuaTuo also integrates core technologies such as automated tracing, profiling, a
 If you only care about the underlying principles and not about storage backends or frontend display, we provide a pre-built image containing all necessary components for HUATO's core operation. Just run:
 
     ```bash
-    $ docker run --privileged --network=host -v /sys:/sys -v /run:/run huatuo/huatuo-bamai:latest
+    $ docker run --privileged --cgroupns=host --network=host -v /sys:/sys -v /run:/run huatuo/huatuo-bamai:latest
     ```
 
 - **Quick Setup​**
