@@ -43,11 +43,17 @@ type CollectorWrapper struct {
 type CollectorManager struct {
 	collectors         map[string]*CollectorWrapper
 	hostname           string
+	region             string
 	scrapeDurationDesc *prometheus.Desc
 	scrapeSuccessDesc  *prometheus.Desc
 }
 
 func NewCollectorManager(blackListed []string, region string) (*CollectorManager, error) {
+	// Init defaultRegion, defaultHostname firstly,
+	// NewGaugeData may be used for data caching in tracing.NewRegister.
+	hostname, _ := os.Hostname()
+	defaultRegion, defaultHostname = region, hostname
+
 	tracings, err := tracing.NewRegister(blackListed)
 	if err != nil {
 		return nil, err
@@ -68,23 +74,20 @@ func NewCollectorManager(blackListed []string, region string) (*CollectorManager
 	scrapeDurationDesc := prometheus.NewDesc(
 		prometheus.BuildFQName(promNamespace, "scrape", "collector_duration_seconds"),
 		promNamespace+": Duration of a collector scrape.",
-		[]string{LabelHost, "collector"},
+		[]string{LabelHost, LabelRegion, "collector"},
 		nil,
 	)
 	scrapeSuccessDesc := prometheus.NewDesc(
 		prometheus.BuildFQName(promNamespace, "scrape", "collector_success"),
 		promNamespace+": Whether a collector succeeded.",
-		[]string{LabelHost, "collector"},
+		[]string{LabelHost, LabelRegion, "collector"},
 		nil,
 	)
-
-	hostname, _ := os.Hostname()
-	defaultRegion = region
-	defaultHostname = hostname
 
 	return &CollectorManager{
 		collectors:         collectors,
 		hostname:           hostname,
+		region:             region,
 		scrapeDurationDesc: scrapeDurationDesc,
 		scrapeSuccessDesc:  scrapeSuccessDesc,
 	}, nil
@@ -143,6 +146,6 @@ func (m *CollectorManager) doCollect(collectorName string, c *CollectorWrapper, 
 		success = 1
 	}
 
-	ch <- prometheus.MustNewConstMetric(m.scrapeDurationDesc, prometheus.GaugeValue, duration.Seconds(), m.hostname, collectorName)
-	ch <- prometheus.MustNewConstMetric(m.scrapeSuccessDesc, prometheus.GaugeValue, success, m.hostname, collectorName)
+	ch <- prometheus.MustNewConstMetric(m.scrapeDurationDesc, prometheus.GaugeValue, duration.Seconds(), m.hostname, m.region, collectorName)
+	ch <- prometheus.MustNewConstMetric(m.scrapeSuccessDesc, prometheus.GaugeValue, success, m.hostname, m.region, collectorName)
 }

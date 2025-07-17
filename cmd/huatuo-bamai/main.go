@@ -83,6 +83,11 @@ func mainAction(ctx *cli.Context) error {
 	}
 
 	blackListed := conf.Get().Tracing.BlackList
+	prom, err := InitMetricsCollector(blackListed, conf.Region)
+	if err != nil {
+		return fmt.Errorf("InitMetricsCollector: %w", err)
+	}
+
 	mgr, err := tracing.NewMgrTracingEvent(blackListed)
 	if err != nil {
 		return err
@@ -92,13 +97,7 @@ func mainAction(ctx *cli.Context) error {
 		return err
 	}
 
-	prom, err := InitMetricsCollector(blackListed, conf.Region)
-	if err != nil {
-		return fmt.Errorf("InitMetricsCollector: %w", err)
-	}
-
 	log.Infof("Initialize the Metrics collector: %v", prom)
-
 	services.Start(conf.Get().APIServer.TCPAddr, mgr, prom)
 
 	// update cpu quota
