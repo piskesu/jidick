@@ -62,7 +62,7 @@ func newHungTask() (*tracing.EventTracingAttr, error) {
 	return &tracing.EventTracingAttr{
 		TracingData: &hungTaskTracing{
 			metric: []*metric.Data{
-				metric.NewGaugeData("count", 0, "hungtask counter", nil),
+				metric.NewGaugeData("counter", 0, "hungtask counter", nil),
 			},
 		},
 		Internal: 10,
@@ -115,17 +115,14 @@ func (c *hungTaskTracing) Start(ctx context.Context) error {
 				blockedProcessesBT = err.Error()
 			}
 
-			caseData := &HungTaskTracerData{
+			hungtaskCounter++
+
+			storage.Save("hungtask", "", time.Now(), &HungTaskTracerData{
 				Pid:                   data.Pid,
 				Comm:                  strings.TrimRight(string(data.Comm[:]), "\x00"),
 				CPUsStack:             cpusBT,
 				BlockedProcessesStack: blockedProcessesBT,
-			}
-
-			hungtaskCounter++
-
-			// save storage
-			storage.Save("hungtask", "", time.Now(), caseData)
+			})
 		}
 	}
 }

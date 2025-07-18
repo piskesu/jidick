@@ -97,7 +97,7 @@ var toWhere = []string{
 }
 
 func init() {
-	tracing.RegisterEventTracing("netrcvlat", newNetRcvLat)
+	tracing.RegisterEventTracing("netrecvlat", newNetRcvLat)
 }
 
 func newNetRcvLat() (*tracing.EventTracingAttr, error) {

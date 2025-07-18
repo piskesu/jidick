@@ -120,8 +120,7 @@ func (c *softirqTracing) Start(ctx context.Context) error {
 				stack = softirqDumpTrace(data.Stack[:])
 			}
 
-			// save storage
-			caseData := &SoftirqTracingData{
+			storage.Save("softirq_tracing", "", time.Now(), &SoftirqTracingData{
 				OffTime:   data.StallTime,
 				Threshold: softirqThresh,
 				Comm:      strings.TrimRight(comm, "\x00"),
@@ -129,8 +128,7 @@ func (c *softirqTracing) Start(ctx context.Context) error {
 				CPU:       data.CPU,
 				Now:       data.Now,
 				Stack:     fmt.Sprintf("stack:\n%s", stack),
-			}
-			storage.Save("softirq", "", time.Now(), caseData)
+			})
 		}
 	} // forever
 }

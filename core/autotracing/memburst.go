@@ -239,11 +239,7 @@ func (c *memBurstTracing) Start(ctx context.Context) error {
 
 		lastReportTime = currentTime
 
-		// save storage
-		caseData := &MemoryTracingData{
-			TopMemoryUsage: topProcesses,
-		}
-		storage.Save("memburst", "", time.Now(), caseData)
+		storage.Save("memburst", "", time.Now(), &MemoryTracingData{TopMemoryUsage: topProcesses})
 	}
 
 	return nil

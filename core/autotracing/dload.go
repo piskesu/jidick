@@ -397,9 +397,8 @@ func dumpInfo(info *containerDloadInfo, logLoad string, caseData *DloadTracingDa
 		caseData.InKnownList = inKnownList
 	}
 
-	// save storage
 	caseData.Stack = fmt.Sprintf("%s%s", stackCgrp, stackHost)
-	storage.Save("ctnDLoad", containerID, time.Now(), caseData)
+	storage.Save("dload", containerID, time.Now(), caseData)
 
 	return nil
 }

@@ -5,60 +5,52 @@
 #include <bpf/bpf_tracing.h>
 
 #include "bpf_common.h"
-#include "bpf_func_trace.h"
-#include "bpf_ratelimit.h"
+#include "vmlinux_sched.h"
 
 char __license[] SEC("license") = "Dual MIT/GPL";
 
-volatile const unsigned long deltath = 0;
-
-struct {
-	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
-	__uint(key_size, sizeof(int));
-	__uint(value_size, sizeof(u32));
-} reclaim_perf_events SEC(".maps");
-
-struct reclaim_entry {
-	char comm[COMPAT_TASK_COMM_LEN];
-	u64 delta_time;
-	u64 css;
-	u64 pid;
+struct mem_cgroup_metric {
+	/* cg: direct reclaim count caused by try_charge */
+	unsigned long directstall_count;
 };
 
-SEC("kprobe/try_to_free_pages")
-int kprobe_try_to_free_pages(struct pt_regs *ctx)
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__type(key, unsigned long);
+	__type(value, struct mem_cgroup_metric);
+	__uint(max_entries, 10240);
+} mem_cgroup_map SEC(".maps");
+
+SEC("tracepoint/vmscan/mm_vmscan_memcg_reclaim_begin")
+int tracepoint_vmscan_mm_vmscan_memcg_reclaim_begin(struct pt_regs *ctx)
 {
-	func_trace_begain(bpf_get_current_pid_tgid());
+	struct cgroup_subsys_state *mm_subsys;
+	struct mem_cgroup_metric *valp;
+	struct task_struct *task;
+
+	task = (struct task_struct *)bpf_get_current_task();
+	if (BPF_CORE_READ(task, flags) & PF_KSWAPD)
+		return 0;
+
+	mm_subsys = BPF_CORE_READ(task, cgroups, subsys[memory_cgrp_id]);
+	valp	  = bpf_map_lookup_elem(&mem_cgroup_map, &mm_subsys);
+	if (!valp) {
+		struct mem_cgroup_metric new_metrics = {
+			.directstall_count = 1,
+		};
+		bpf_map_update_elem(&mem_cgroup_map, &mm_subsys, &new_metrics,
+				    COMPAT_BPF_ANY);
+		return 0;
+	}
+
+	__sync_fetch_and_add(&valp->directstall_count, 1);
 	return 0;
 }
 
-SEC("kretprobe/try_to_free_pages")
-int kretprobe_try_to_free_pages(struct pt_regs *ctx)
+SEC("kprobe/mem_cgroup_css_released")
+int kprobe_mem_cgroup_css_released(struct pt_regs *ctx)
 {
-	struct trace_entry_ctx *entry;
-	struct task_struct *task;
-
-	entry = func_trace_end(bpf_get_current_pid_tgid());
-	if (!entry)
-		return 0;
-
-	if (entry->delta_ns > deltath) {
-		task = (struct task_struct *)bpf_get_current_task();
-
-		struct reclaim_entry data = {
-			.pid	    = entry->id,
-			.css	    = (u64)BPF_CORE_READ(task, cgroups,
-							 subsys[cpu_cgrp_id]),
-			.delta_time = entry->delta_ns,
-		};
-
-		bpf_get_current_comm(data.comm, sizeof(data.comm));
-
-		bpf_perf_event_output(ctx, &reclaim_perf_events,
-				      COMPAT_BPF_F_CURRENT_CPU, &data,
-				      sizeof(struct reclaim_entry));
-	}
-
-	func_trace_destroy(entry->id);
+	u64 css = PT_REGS_PARM1(ctx);
+	bpf_map_delete_elem(&mem_cgroup_map, &css);
 	return 0;
 }

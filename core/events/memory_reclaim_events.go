@@ -46,7 +46,7 @@ type MemoryReclaimTracingData struct {
 }
 
 func init() {
-	tracing.RegisterEventTracing("memreclaim", newMemoryReclaim)
+	tracing.RegisterEventTracing("memory_reclaim_events", newMemoryReclaim)
 }
 
 func newMemoryReclaim() (*tracing.EventTracingAttr, error) {
@@ -57,7 +57,7 @@ func newMemoryReclaim() (*tracing.EventTracingAttr, error) {
 	}, nil
 }
 
-//go:generate $BPF_COMPILE $BPF_INCLUDE -s $BPF_DIR/memory_reclaim.c -o $BPF_DIR/memory_reclaim.o
+//go:generate $BPF_COMPILE $BPF_INCLUDE -s $BPF_DIR/memory_reclaim_events.c -o $BPF_DIR/memory_reclaim_events.o
 
 // Start detect work, load bpf and wait data form perfevent
 func (c *memoryReclaimTracing) Start(ctx context.Context) error {
@@ -67,7 +67,6 @@ func (c *memoryReclaimTracing) Start(ctx context.Context) error {
 
 	b, err := bpf.LoadBpf(bpfutil.ThisBpfOBJ(), map[string]any{"deltath": deltath})
 	if err != nil {
-		log.Infof("LoadBpf: %v", err)
 		return err
 	}
 	defer b.Close()
@@ -77,7 +76,6 @@ func (c *memoryReclaimTracing) Start(ctx context.Context) error {
 
 	reader, err := b.AttachAndEventPipe(childCtx, "reclaim_perf_events", 8192)
 	if err != nil {
-		log.Infof("AttachAndEventPipe: %v", err)
 		return err
 	}
 	defer reader.Close()

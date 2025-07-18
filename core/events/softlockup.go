@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"huatuo-bamai/internal/bpf"
-	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/storage"
 	"huatuo-bamai/internal/utils/bpfutil"
 	"huatuo-bamai/internal/utils/kmsgutil"
@@ -57,7 +56,7 @@ func newSoftLockup() (*tracing.EventTracingAttr, error) {
 	return &tracing.EventTracingAttr{
 		TracingData: &softLockupTracing{
 			softlockupMetric: []*metric.Data{
-				metric.NewGaugeData("happened", 0, "softlockup happened", nil),
+				metric.NewGaugeData("counter", 0, "softlockup counter", nil),
 			},
 		},
 		Internal: 10,
@@ -69,14 +68,12 @@ var softlockupCounter float64
 
 func (c *softLockupTracing) Update() ([]*metric.Data, error) {
 	c.softlockupMetric[0].Value = softlockupCounter
-	softlockupCounter = 0
 	return c.softlockupMetric, nil
 }
 
 func (c *softLockupTracing) Start(ctx context.Context) error {
 	b, err := bpf.LoadBpf(bpfutil.ThisBpfOBJ(), nil)
 	if err != nil {
-		log.Infof("failed to LoadBpf, err: %v", err)
 		return err
 	}
 	defer b.Close()
@@ -86,7 +83,6 @@ func (c *softLockupTracing) Start(ctx context.Context) error {
 
 	reader, err := b.AttachAndEventPipe(childCtx, "softlockup_perf_events", 8192)
 	if err != nil {
-		log.Infof("failed to AttachAndEventPipe, err: %v", err)
 		return err
 	}
 	defer reader.Close()
@@ -108,16 +104,14 @@ func (c *softLockupTracing) Start(ctx context.Context) error {
 				bt = err.Error()
 			}
 
-			caseData := &SoftLockupTracerData{
+			softlockupCounter++
+
+			storage.Save("softlockup", "", time.Now(), &SoftLockupTracerData{
 				CPU:       data.CPU,
 				Pid:       data.Pid,
 				Comm:      strings.TrimRight(string(data.Comm[:]), "\x00"),
 				CPUsStack: bt,
-			}
-			softlockupCounter++
-
-			// save storage
-			storage.Save("softlockup", "", time.Now(), caseData)
+			})
 		}
 	}
 }

@@ -93,8 +93,8 @@ func (c *loadavgCollector) Update() ([]*metric.Data, error) {
 		}
 
 		loadAvgMetrics = append(loadAvgMetrics,
-			metric.NewContainerGaugeData(container, "container_nr_running", float64(stats.NrRunning), "nr_running of container", nil),
-			metric.NewContainerGaugeData(container, "container_nr_uninterruptible", float64(stats.NrUninterruptible), "nr_uninterruptible of container", nil))
+			metric.NewContainerGaugeData(container, "nr_running", float64(stats.NrRunning), "nr_running of container", nil),
+			metric.NewContainerGaugeData(container, "nr_uninterruptible", float64(stats.NrUninterruptible), "nr_uninterruptible of container", nil))
 	}
 
 	if err := c.hostLoadAvg(); err != nil {

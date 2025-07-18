@@ -165,7 +165,6 @@ func (c *dropWatchTracing) Start(ctx context.Context) error {
 				continue
 			}
 
-			// save storage
 			storage.Save(tracerName, "", tracerTime, tracerData)
 		}
 	}

@@ -43,7 +43,7 @@ const (
 )
 
 func (l linkStatusType) String() string {
-	return [...]string{"linkStatusUnknown", "linkStatusAdminUp", "linkStatusAdminDown", "linkStatusCarrierUp", "linkStatusCarrierDown"}[l]
+	return [...]string{"linkstatus_unknown", "linkstatus_adminup", "linkstatus_admindown", "linkstatus_carrierup", "linkstatus_carrierdown"}[l]
 }
 
 func flags2status(flags, change uint32) []linkStatusType {
@@ -88,7 +88,7 @@ type netdevEventData struct {
 }
 
 func init() {
-	tracing.RegisterEventTracing("netdev_event", newNetdevTracing)
+	tracing.RegisterEventTracing("netdev_events", newNetdevTracing)
 }
 
 func newNetdevTracing() (*tracing.EventTracingAttr, error) {
@@ -103,7 +103,7 @@ func newNetdevTracing() (*tracing.EventTracingAttr, error) {
 			linkDoneCh:                make(chan struct{}),
 			ifFlagsMap:                make(map[string]uint32),
 			metricsLinkStatusCountMap: initMap,
-			name:                      "netdev_event",
+			name:                      "netdev_events",
 		},
 		Internal: 10,
 		Flag:     tracing.FlagTracing | tracing.FlagMetric,

@@ -27,14 +27,14 @@ import (
 )
 
 func init() {
-	tracing.RegisterEventTracing("mmhost", newMemoryHost)
+	tracing.RegisterEventTracing("memory_free", newMemoryHost)
 }
 
 func newMemoryHost() (*tracing.EventTracingAttr, error) {
 	mm := &memoryHost{
 		metrics: []*metric.Data{
-			metric.NewGaugeData("compactionstat", 0, "time spent during mm compaction", nil),
-			metric.NewGaugeData("allocstallstat", 0, "time spent during mm allocstall", nil),
+			metric.NewGaugeData("compaction", 0, "time elapsed in memory compaction", nil),
+			metric.NewGaugeData("allocstall", 0, "time elapsed in memory allocstall", nil),
 		},
 	}
 	return &tracing.EventTracingAttr{

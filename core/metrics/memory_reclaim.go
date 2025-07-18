@@ -28,7 +28,7 @@ import (
 )
 
 func init() {
-	tracing.RegisterEventTracing("mmcgroup", newMemoryCgroup)
+	tracing.RegisterEventTracing("memory_reclaim", newMemoryCgroup)
 }
 
 func newMemoryCgroup() (*tracing.EventTracingAttr, error) {
@@ -43,7 +43,7 @@ type memoryCgroupMetric struct {
 	DirectstallCount uint64
 }
 
-//go:generate $BPF_COMPILE $BPF_INCLUDE -s $BPF_DIR/memory_cgroup.c -o $BPF_DIR/memory_cgroup.o
+//go:generate $BPF_COMPILE $BPF_INCLUDE -s $BPF_DIR/memory_reclaim.c -o $BPF_DIR/memory_reclaim.o
 
 type memoryCgroup struct {
 	bpf      bpf.BPF
@@ -88,7 +88,7 @@ func (c *memoryCgroup) Update() ([]*metric.Data, error) {
 
 		if container, exist := containersMap[css]; exist {
 			containersMetric = append(containersMetric,
-				metric.NewContainerGaugeData(container, "directstallcount",
+				metric.NewContainerGaugeData(container, "directstall",
 					float64(cgroupMetric.DirectstallCount),
 					"counting of cgroup try_charge reclaim", nil))
 		}
@@ -98,7 +98,7 @@ func (c *memoryCgroup) Update() ([]*metric.Data, error) {
 	if len(items) == 0 {
 		for _, container := range containersMap {
 			containersMetric = append(containersMetric,
-				metric.NewContainerGaugeData(container, "directstallcount", float64(0),
+				metric.NewContainerGaugeData(container, "directstall", float64(0),
 					"counting of cgroup try_charge reclaim", nil))
 		}
 	}
