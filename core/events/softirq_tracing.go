@@ -22,7 +22,6 @@ import (
 
 	"huatuo-bamai/internal/bpf"
 	"huatuo-bamai/internal/conf"
-	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/storage"
 	"huatuo-bamai/internal/utils/bpfutil"
 	"huatuo-bamai/internal/utils/symbolutil"
@@ -67,14 +66,11 @@ func newSoftirq() (*tracing.EventTracingAttr, error) {
 }
 
 func (c *softirqTracing) Start(ctx context.Context) error {
-	log.Infof("Softirq start")
-
 	softirqThresh := conf.Get().Tracing.Softirq.ThresholdTime
 
 	b, err := bpf.LoadBpf(bpfutil.ThisBpfOBJ(), map[string]any{"softirq_thresh": softirqThresh})
 	if err != nil {
-		log.Infof("failed to LoadBpf, err: %v", err)
-		return err
+		return fmt.Errorf("load bpf: %w", err)
 	}
 	defer b.Close()
 
@@ -83,8 +79,7 @@ func (c *softirqTracing) Start(ctx context.Context) error {
 
 	reader, err := attachIrqAndEventPipe(childCtx, b)
 	if err != nil {
-		log.Infof("failed to attachIrqAndEventPipe, err: %v", err)
-		return err
+		return fmt.Errorf("attach irq and event pipe: %w", err)
 	}
 	defer reader.Close()
 

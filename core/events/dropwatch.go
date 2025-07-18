@@ -121,11 +121,9 @@ func newDropWatch() (*tracing.EventTracingAttr, error) {
 
 // Start starts the tracer.
 func (c *dropWatchTracing) Start(ctx context.Context) error {
-	log.Info(logPrefix + "tracer will be starting.")
-
 	b, err := bpf.LoadBpf(bpfutil.ThisBpfOBJ(), nil)
 	if err != nil {
-		return fmt.Errorf(logPrefix+"failed to load bpf: %w", err)
+		return fmt.Errorf("load bpf: %w", err)
 	}
 	defer b.Close()
 
@@ -135,14 +133,11 @@ func (c *dropWatchTracing) Start(ctx context.Context) error {
 	// attach
 	reader, err := b.AttachAndEventPipe(childCtx, "perf_events", 8192)
 	if err != nil {
-		return fmt.Errorf(logPrefix+"failed to attach and event pipe: %w", err)
+		return fmt.Errorf("attach and event pipe: %w", err)
 	}
 	defer reader.Close()
 
-	// breaker
 	b.WaitDetachByBreaker(childCtx, cancel)
-
-	log.Info(logPrefix + "tracer is waitting for event.")
 
 	for {
 		select {
@@ -156,16 +151,14 @@ func (c *dropWatchTracing) Start(ctx context.Context) error {
 			}
 
 			// format
-			tracerTime := time.Now()
 			tracerData := c.formatEvent(&event)
 
-			// ignore
 			if c.ignore(tracerData) {
 				log.Debugf(logPrefix+"ignore dropwatch data: %v", tracerData)
 				continue
 			}
 
-			storage.Save(tracerName, "", tracerTime, tracerData)
+			storage.Save(tracerName, "", time.Now(), tracerData)
 		}
 	}
 }

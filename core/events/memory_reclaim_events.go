@@ -61,11 +61,9 @@ func newMemoryReclaim() (*tracing.EventTracingAttr, error) {
 
 // Start detect work, load bpf and wait data form perfevent
 func (c *memoryReclaimTracing) Start(ctx context.Context) error {
-	log.Infof("memory reclaim start.")
-
-	deltath := conf.Get().Tracing.MemoryReclaim.Deltath
-
-	b, err := bpf.LoadBpf(bpfutil.ThisBpfOBJ(), map[string]any{"deltath": deltath})
+	b, err := bpf.LoadBpf(bpfutil.ThisBpfOBJ(), map[string]any{
+		"deltath": conf.Get().Tracing.MemoryReclaim.Deltath,
+	})
 	if err != nil {
 		return err
 	}

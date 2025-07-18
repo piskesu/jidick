@@ -58,7 +58,7 @@ func newLACPTracing() (*tracing.EventTracingAttr, error) {
 func (lacp *lacpTracing) Start(ctx context.Context) (err error) {
 	b, err := bpf.LoadBpf(bpfutil.ThisBpfOBJ(), nil)
 	if err != nil {
-		return fmt.Errorf("Load lacp err: %w", err)
+		return fmt.Errorf("load bpf: %w", err)
 	}
 	defer b.Close()
 
@@ -67,7 +67,7 @@ func (lacp *lacpTracing) Start(ctx context.Context) (err error) {
 
 	reader, err := b.AttachAndEventPipe(childCtx, "ad_event_map", 8192)
 	if err != nil {
-		return fmt.Errorf("failed to AttachAndEventPipe, err: %w", err)
+		return fmt.Errorf("attach and event pipe: %w", err)
 	}
 	defer reader.Close()
 

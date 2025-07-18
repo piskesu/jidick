@@ -110,12 +110,12 @@ func (c *memoryCgroup) Start(ctx context.Context) error {
 	var err error
 	c.bpf, err = bpf.LoadBpf(bpfutil.ThisBpfOBJ(), nil)
 	if err != nil {
-		return fmt.Errorf("LoadBpf memory_cgroup.o: %w", err)
+		return fmt.Errorf("load bpf: %w", err)
 	}
 	defer c.bpf.Close()
 
 	if err = c.bpf.Attach(); err != nil {
-		return fmt.Errorf("failed to Attach, err: %w", err)
+		return fmt.Errorf("attach: %w", err)
 	}
 
 	childCtx, cancel := context.WithCancel(ctx)

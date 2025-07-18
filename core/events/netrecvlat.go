@@ -133,7 +133,6 @@ func (c *netRecvLatTracing) Start(ctx context.Context) error {
 	}
 	b, err := bpf.LoadBpf(bpfutil.ThisBpfOBJ(), args)
 	if err != nil {
-		log.Infof("failed to LoadBpf, err: %v", err)
 		return err
 	}
 	defer b.Close()
@@ -143,7 +142,6 @@ func (c *netRecvLatTracing) Start(ctx context.Context) error {
 
 	reader, err := b.AttachAndEventPipe(childCtx, "net_recv_lat_event_map", 8192)
 	if err != nil {
-		log.Infof("failed to AttachAndEventPipe, err: %v", err)
 		return err
 	}
 	defer reader.Close()

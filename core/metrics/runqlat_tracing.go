@@ -47,7 +47,7 @@ func startRunqlatTracerWork(ctx context.Context) error {
 	// load bpf.
 	b, err := bpf.LoadBpf(bpfutil.ThisBpfOBJ(), nil)
 	if err != nil {
-		return fmt.Errorf("failed to LoadBpf, err: %w", err)
+		return fmt.Errorf("load bpf: %w", err)
 	}
 	defer b.Close()
 

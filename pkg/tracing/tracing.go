@@ -72,7 +72,7 @@ func (c *EventTracing) Start() error {
 		log.Infof("%s: tracing goroutine exited", c.name)
 	}()
 
-	log.Infof("%s tracing start", c.name)
+	log.Infof("start tracing %s", c.name)
 	return nil
 }
 
@@ -84,7 +84,7 @@ func (c *EventTracing) doStart() {
 	if err := c.ic.Start(ctx); err != nil &&
 		!(errors.Is(err, types.ErrExitByCancelCtx) ||
 			errors.Is(err, types.ErrDisconnectedHuatuo)) {
-		log.Errorf("start tracing error: %s, %v", c.name, err)
+		log.Errorf("start tracing %s: %v", c.name, err)
 	}
 }
 

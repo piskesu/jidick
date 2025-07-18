@@ -105,7 +105,6 @@ func (c *oomCollector) Update() ([]*metric.Data, error) {
 func (c *oomCollector) Start(ctx context.Context) error {
 	b, err := bpf.LoadBpf(bpfutil.ThisBpfOBJ(), nil)
 	if err != nil {
-		log.Infof("failed to LoadBpf, err: %v", err)
 		return err
 	}
 	defer b.Close()
@@ -115,7 +114,6 @@ func (c *oomCollector) Start(ctx context.Context) error {
 
 	reader, err := b.AttachAndEventPipe(childCtx, "oom_perf_events", 8192)
 	if err != nil {
-		log.Infof("failed to AttachAndEventPipe, err: %v", err)
 		return err
 	}
 	defer reader.Close()
