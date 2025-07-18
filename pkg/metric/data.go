@@ -38,19 +38,19 @@ const (
 	MetricTypeCounter = 1
 
 	// LabelHost indicates the host.
-	LabelHost = "Host"
+	LabelHost = "host"
 	// LabelRegion indicates the data collected from.
-	LabelRegion = "Region"
+	LabelRegion = "region"
 	// LabelContainerName indicates the container name.
-	LabelContainerName = "ContainerName"
+	LabelContainerName = "container_name"
 	// LabelContainerHost indicates the container host.
-	LabelContainerHost = "ContainerHost"
+	LabelContainerHost = "container_host"
 	// LabelContainerType indicates the container type.
-	LabelContainerType = "ContainerType"
-	// LabelContainerQos indicates the container level.
-	LabelContainerQos = "ContainerQos"
+	LabelContainerType = "container_type"
+	// LabelContainerLevel indicates the container level.
+	LabelContainerLevel = "container_level"
 	// LabelContainerHostNamespace indicates the container host namespace.
-	LabelContainerHostNamespace = "ContainerHostNamespace"
+	LabelContainerHostNamespace = "container_hostnamespace"
 )
 
 var metricDescCache sync.Map
@@ -132,7 +132,7 @@ func NewContainerGaugeData(container *pod.Container, name string, value float64,
 		LabelContainerHost,
 		LabelContainerName,
 		LabelContainerType,
-		LabelContainerQos,
+		LabelContainerLevel,
 		LabelContainerHostNamespace,
 		LabelHost)
 	data.labelValue = append(data.labelValue,
