@@ -22,7 +22,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -123,19 +122,24 @@ func kubeletGetPodList() (corev1.PodList, error) {
 		return podList, nil
 	}
 
-	// get the Cert of CA and Client kubelet-client-current.pem
-	kubeletPodCACertPath := conf.Get().Pod.KubeletPodCACertPath
-	kubeletPodClientCertDir := conf.Get().Pod.KubeletPodClientCertDir
-	kubeletPodClientCertPath := filepath.Join(kubeletPodClientCertDir, "kubelet-client-current.pem")
-	kubeletPodClientKeyPath := filepath.Join(kubeletPodClientCertDir, "kubelet-client-current.pem")
+	var clientCertPath string
+	var clientCertKey string
 
 	// Load Client Cert and Key
-	cert, err := tls.LoadX509KeyPair(kubeletPodClientCertPath, kubeletPodClientKeyPath)
+	s := strings.Split(conf.Get().Pod.KubeletPodClientCertPath, ",")
+	if len(s) == 1 {
+		clientCertPath, clientCertKey = s[0], s[0]
+	} else if len(s) >= 2 {
+		clientCertPath, clientCertKey = s[0], s[1]
+	}
+
+	cert, err := tls.LoadX509KeyPair(clientCertPath, clientCertKey)
 	if err != nil {
 		return corev1.PodList{}, fmt.Errorf("loading client key pair: %w", err)
 	}
 
-	caCert, err := os.ReadFile(kubeletPodCACertPath)
+	// Load CA Cert
+	caCert, err := os.ReadFile(conf.Get().Pod.KubeletPodCACertPath)
 	if err != nil {
 		return corev1.PodList{}, fmt.Errorf("reading CA certificate: %w", err)
 	}
