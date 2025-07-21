@@ -15,14 +15,17 @@
 package pod
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"strings"
+	"syscall"
 	"time"
 
 	"huatuo-bamai/internal/log"
@@ -40,6 +43,8 @@ var (
 	kubeletRunningEnabled              = false
 	kubeletPodListURL                  string
 	kubeletHttpsClient                 *http.Client
+	kubeletTimeTicker                  *time.Ticker
+	kubeletDoneCancel                  context.CancelFunc
 )
 
 type PodContainerInitCtx struct {
@@ -47,36 +52,26 @@ type PodContainerInitCtx struct {
 	PodListAuthorizedPort string
 	PodClientCertPath     string
 	PodCACertPath         string
+	podClientCertPath     string
+	podClientCertKey      string
 }
 
-func kubeletPodListPortDetect(ctx *PodContainerInitCtx) error {
+func kubeletPodListPortUpdate(ctx *PodContainerInitCtx) error {
 	client := &http.Client{
 		Timeout: kubeletReqTimeout,
 	}
 	if _, err := kubeletDoRequest(client, ctx.PodListReadOnlyPort); err == nil {
-		kubeletRunningEnabled = true
 		kubeletPodListAuthorizationEnabled = false
 		kubeletPodListURL = ctx.PodListReadOnlyPort
+		kubeletRunningEnabled = true
 		return nil
 	}
 
-	var clientCertPath string
-	var clientCertKey string
-
-	// Load Client Cert and Key
-	s := strings.Split(ctx.PodClientCertPath, ",")
-	if len(s) == 1 {
-		clientCertPath, clientCertKey = s[0], s[0]
-	} else if len(s) >= 2 {
-		clientCertPath, clientCertKey = s[0], s[1]
-	}
-
-	cert, err := tls.LoadX509KeyPair(clientCertPath, clientCertKey)
+	cert, err := tls.LoadX509KeyPair(ctx.podClientCertPath, ctx.podClientCertKey)
 	if err != nil {
 		return fmt.Errorf("loading client key pair: %w", err)
 	}
 
-	// Load CA Cert
 	caCert, err := os.ReadFile(ctx.PodCACertPath)
 	if err != nil {
 		return fmt.Errorf("reading CA certificate: %w", err)
@@ -110,7 +105,50 @@ func kubeletPodListPortDetect(ctx *PodContainerInitCtx) error {
 }
 
 func ContainerPodMgrInit(ctx *PodContainerInitCtx) error {
-	return kubeletPodListPortDetect(ctx)
+	s := strings.Split(ctx.PodClientCertPath, ",")
+	if len(s) == 1 {
+		ctx.podClientCertPath, ctx.podClientCertKey = s[0], s[0]
+	} else if len(s) >= 2 {
+		ctx.podClientCertPath, ctx.podClientCertKey = s[0], s[1]
+	}
+
+	err := kubeletPodListPortUpdate(ctx)
+	if !errors.Is(err, syscall.ECONNREFUSED) {
+		return err
+	}
+
+	doneCtx, cancel := context.WithCancel(context.Background())
+
+	kubeletDoneCancel = cancel
+	kubeletTimeTicker = time.NewTicker(30 * time.Minute)
+	go func(doneCtx context.Context, t *time.Ticker) {
+		for {
+			select {
+			case <-t.C:
+				if err := kubeletPodListPortUpdate(ctx); err == nil {
+					log.Infof("kubelet is running now")
+					ContainerPodMgrClose()
+					break
+				}
+			case <-doneCtx.Done():
+				return
+			}
+		}
+	}(doneCtx, kubeletTimeTicker)
+
+	return nil
+}
+
+func ContainerPodMgrClose() {
+	if kubeletTimeTicker != nil {
+		kubeletTimeTicker.Stop()
+		kubeletTimeTicker = nil
+	}
+
+	if kubeletDoneCancel != nil {
+		kubeletDoneCancel()
+		kubeletDoneCancel = nil
+	}
 }
 
 func kubeletSyncContainers() error {

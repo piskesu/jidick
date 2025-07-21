@@ -124,6 +124,7 @@ func mainAction(ctx *cli.Context) error {
 		case syscall.SIGQUIT, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM:
 			log.Infof("huatuo-bamai exit by signal %d", s)
 			bpf.CloseBpfManager()
+			pod.ContainerPodMgrClose()
 			return nil
 		case syscall.SIGUSR1:
 			return nil
