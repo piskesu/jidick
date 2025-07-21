@@ -69,7 +69,8 @@ func kubeletPodListPortUpdate(ctx *PodContainerInitCtx) error {
 
 	cert, err := tls.LoadX509KeyPair(ctx.podClientCertPath, ctx.podClientCertKey)
 	if err != nil {
-		return fmt.Errorf("loading client key pair: %w", err)
+		return fmt.Errorf("loading client key pair [%s,%s]: %w",
+			ctx.podClientCertPath, ctx.podClientCertKey, err)
 	}
 
 	caCert, err := os.ReadFile(ctx.PodCACertPath)
@@ -105,6 +106,11 @@ func kubeletPodListPortUpdate(ctx *PodContainerInitCtx) error {
 }
 
 func ContainerPodMgrInit(ctx *PodContainerInitCtx) error {
+	if ctx.PodListReadOnlyPort == "" && ctx.PodListAuthorizedPort == "" {
+		log.Warnf("pod sync is not working, we manually turned off this.")
+		return nil
+	}
+
 	s := strings.Split(ctx.PodClientCertPath, ",")
 	if len(s) == 1 {
 		ctx.podClientCertPath, ctx.podClientCertKey = s[0], s[0]
@@ -155,7 +161,6 @@ func kubeletSyncContainers() error {
 	podList, err := kubeletGetPodList()
 	if err != nil {
 		// ignore all errors and remain old containers.
-		log.Infof("failed to get pod list, err: %v", err)
 		return nil
 	}
 
