@@ -82,6 +82,17 @@ func mainAction(ctx *cli.Context) error {
 		return fmt.Errorf("init pod cgroup metadata: %w", err)
 	}
 
+	podListInitCtx := pod.PodContainerInitCtx{
+		PodListReadOnlyPort:   conf.Get().Pod.KubeletPodListURL,
+		PodListAuthorizedPort: conf.Get().Pod.KubeletPodListHTTPSURL,
+		PodClientCertPath:     conf.Get().Pod.KubeletPodClientCertPath,
+		PodCACertPath:         conf.Get().Pod.KubeletPodCACertPath,
+	}
+
+	if err := pod.ContainerPodMgrInit(&podListInitCtx); err != nil {
+		return fmt.Errorf("init podlist and sync module: %w", err)
+	}
+
 	blacklisted := conf.Get().Blacklist
 	prom, err := InitMetricsCollector(blacklisted, conf.Region)
 	if err != nil {

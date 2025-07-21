@@ -25,7 +25,6 @@ import (
 	"strings"
 	"time"
 
-	"huatuo-bamai/internal/conf"
 	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/utils/procfsutil"
 
@@ -35,6 +34,84 @@ import (
 const (
 	kubeletReqTimeout = 5 * time.Second
 )
+
+var (
+	kubeletPodListAuthorizationEnabled = false
+	kubeletRunningEnabled              = false
+	kubeletPodListURL                  string
+	kubeletHttpsClient                 *http.Client
+)
+
+type PodContainerInitCtx struct {
+	PodListReadOnlyPort   string
+	PodListAuthorizedPort string
+	PodClientCertPath     string
+	PodCACertPath         string
+}
+
+func kubeletPodListPortDetect(ctx *PodContainerInitCtx) error {
+	client := &http.Client{
+		Timeout: kubeletReqTimeout,
+	}
+	if _, err := kubeletDoRequest(client, ctx.PodListReadOnlyPort); err == nil {
+		kubeletRunningEnabled = true
+		kubeletPodListAuthorizationEnabled = false
+		kubeletPodListURL = ctx.PodListReadOnlyPort
+		return nil
+	}
+
+	var clientCertPath string
+	var clientCertKey string
+
+	// Load Client Cert and Key
+	s := strings.Split(ctx.PodClientCertPath, ",")
+	if len(s) == 1 {
+		clientCertPath, clientCertKey = s[0], s[0]
+	} else if len(s) >= 2 {
+		clientCertPath, clientCertKey = s[0], s[1]
+	}
+
+	cert, err := tls.LoadX509KeyPair(clientCertPath, clientCertKey)
+	if err != nil {
+		return fmt.Errorf("loading client key pair: %w", err)
+	}
+
+	// Load CA Cert
+	caCert, err := os.ReadFile(ctx.PodCACertPath)
+	if err != nil {
+		return fmt.Errorf("reading CA certificate: %w", err)
+	}
+
+	caCertPool := x509.NewCertPool()
+	if ok := caCertPool.AppendCertsFromPEM(caCert); !ok {
+		return fmt.Errorf("parse/append a series of pem")
+	}
+
+	client.Transport = &http.Transport{
+		TLSClientConfig: &tls.Config{
+			Certificates:       []tls.Certificate{cert},
+			RootCAs:            caCertPool,
+			InsecureSkipVerify: true, // #nosec G402
+		},
+	}
+
+	if _, err := kubeletDoRequest(client, ctx.PodListAuthorizedPort); err != nil {
+		kubeletPodListAuthorizationEnabled = false
+		kubeletRunningEnabled = false
+		return fmt.Errorf("podlist https: %w", err)
+	}
+
+	// update https instance cache
+	kubeletHttpsClient = client
+	kubeletPodListURL = ctx.PodListAuthorizedPort
+	kubeletPodListAuthorizationEnabled = true
+	kubeletRunningEnabled = true
+	return nil
+}
+
+func ContainerPodMgrInit(ctx *PodContainerInitCtx) error {
+	return kubeletPodListPortDetect(ctx)
+}
 
 func kubeletSyncContainers() error {
 	podList, err := kubeletGetPodList()
@@ -114,48 +191,19 @@ func kubeletSyncContainers() error {
 }
 
 func kubeletGetPodList() (corev1.PodList, error) {
-	kubeletPodListURL := conf.Get().Pod.KubeletPodListURL
-	client := &http.Client{
-		Timeout: kubeletReqTimeout,
-	}
-	if podList, err := kubeletDoRequest(client, kubeletPodListURL); err == nil {
-		return podList, nil
+	if !kubeletRunningEnabled {
+		return corev1.PodList{}, fmt.Errorf("kubelet not running")
 	}
 
-	var clientCertPath string
-	var clientCertKey string
+	if !kubeletPodListAuthorizationEnabled {
+		client := &http.Client{
+			Timeout: kubeletReqTimeout,
+		}
 
-	// Load Client Cert and Key
-	s := strings.Split(conf.Get().Pod.KubeletPodClientCertPath, ",")
-	if len(s) == 1 {
-		clientCertPath, clientCertKey = s[0], s[0]
-	} else if len(s) >= 2 {
-		clientCertPath, clientCertKey = s[0], s[1]
+		return kubeletDoRequest(client, kubeletPodListURL)
 	}
 
-	cert, err := tls.LoadX509KeyPair(clientCertPath, clientCertKey)
-	if err != nil {
-		return corev1.PodList{}, fmt.Errorf("loading client key pair: %w", err)
-	}
-
-	// Load CA Cert
-	caCert, err := os.ReadFile(conf.Get().Pod.KubeletPodCACertPath)
-	if err != nil {
-		return corev1.PodList{}, fmt.Errorf("reading CA certificate: %w", err)
-	}
-
-	caCertPool := x509.NewCertPool()
-	caCertPool.AppendCertsFromPEM(caCert)
-	client.Transport = &http.Transport{
-		TLSClientConfig: &tls.Config{
-			Certificates:       []tls.Certificate{cert},
-			RootCAs:            caCertPool,
-			InsecureSkipVerify: true, // #nosec G402
-		},
-	}
-
-	kubeletPodListURL = conf.Get().Pod.KubeletPodListHTTPSURL
-	return kubeletDoRequest(client, kubeletPodListURL)
+	return kubeletDoRequest(kubeletHttpsClient, kubeletPodListURL)
 }
 
 func kubeletDoRequest(client *http.Client, kubeletPodListURL string) (corev1.PodList, error) {
