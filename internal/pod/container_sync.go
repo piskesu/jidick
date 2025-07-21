@@ -361,52 +361,10 @@ func parseContainerIDInPodStatus(data string) (string, error) {
 }
 
 func parseContainerIPAddress(pod *corev1.Pod) string {
-	// podIP example:
-	//
-	//	"status": {
-	//		...
-	//		"hostIP": "10.74.164.13",
-	//		"podIP": "10.74.164.13",
-	//		"podIPs": [
-	//			{
-	//				"ip": "10.74.164.13"
-	//			}
-	//		],
-	//		...
-	//	},
 	return pod.Status.PodIP
 }
 
 func isRuningPod(pod *corev1.Pod) bool {
-	// running pod example:
-	//
-	//  "status": {
-	//		...
-	//		"phase": "Running",
-	//		...
-	//	    "containerStatuses": [
-	//			{
-	//				"name": "taxi-invoice-center-zjy",
-	//				"state": {
-	//					"running": {
-	//						"startedAt": "2024-05-28T03:10:30Z"
-	//					},
-	//				...
-	//				},
-	//				...
-	//			},
-	//			{
-	//				"name": "agent-taxi-invoice-center-zjy",
-	//				"state": {
-	//					"running": {
-	//						"startedAt": "2024-05-28T03:10:30Z"
-	//					},
-	//				...
-	//				},
-	//				...
-	//			},
-	//}
-
 	// The Pod has been bound to a node, and all of the containers have been created.
 	// At least one container is still running, or is in the process of starting or
 	// restarting.

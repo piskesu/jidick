@@ -32,18 +32,6 @@ func parseContainerHostname(typ ContainerType, pod *corev1.Pod) (string, error) 
 		return hostname, nil
 	}
 
-	// container's hostname example:
-	//
-	//  "metadata": {
-	//		"name": "level4-sf-4d59e-1",
-	//		...
-	//	},
-	//	...
-	//  "spec": {
-	//		...
-	//		"hostname": "level4-sf-4d59e-1",
-	//		...
-	//	},
 	hostname := pod.Spec.Hostname
 	if hostname == "" {
 		hostname = pod.Name
