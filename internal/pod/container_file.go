@@ -158,8 +158,9 @@ func containerInitPidInContainerd(containerID string) (int, error) {
 
 func containerCgroupSuffix(containerID string, pod *corev1.Pod) string {
 	if pod.Status.QOSClass == corev1.PodQOSGuaranteed {
-		return fmt.Sprintf("/kubepods/pod%s/%s", pod.UID, containerID)
+		return fmt.Sprintf("/%s/pod%s/%s", kubeletPodCgroupPrefix, pod.UID, containerID)
 	}
 
-	return fmt.Sprintf("/kubepods/%s/pod%s/%s", strings.ToLower(string(pod.Status.QOSClass)), pod.UID, containerID)
+	return fmt.Sprintf("/%s/%s/pod%s/%s", kubeletPodCgroupPrefix,
+		strings.ToLower(string(pod.Status.QOSClass)), pod.UID, containerID)
 }

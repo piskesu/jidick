@@ -32,10 +32,13 @@ import (
 	"huatuo-bamai/internal/utils/procfsutil"
 
 	corev1 "k8s.io/api/core/v1"
+	kubeletconfig "k8s.io/kubelet/config/v1beta1"
+	"sigs.k8s.io/yaml"
 )
 
 const (
-	kubeletReqTimeout = 5 * time.Second
+	kubeletReqTimeout      = 5 * time.Second
+	kubeletDefaultConfPath = "/var/lib/kubelet/config.yaml"
 )
 
 var (
@@ -45,6 +48,7 @@ var (
 	kubeletHttpsClient                 *http.Client
 	kubeletTimeTicker                  *time.Ticker
 	kubeletDoneCancel                  context.CancelFunc
+	kubeletPodCgroupPrefix             = "kubepods"
 )
 
 type PodContainerInitCtx struct {
@@ -118,6 +122,8 @@ func ContainerPodMgrInit(ctx *PodContainerInitCtx) error {
 		ctx.podClientCertPath, ctx.podClientCertKey = s[0], s[1]
 	}
 
+	_ = kubeletCgroupDriver()
+
 	err := kubeletPodListPortUpdate(ctx)
 	if !errors.Is(err, syscall.ECONNREFUSED) {
 		return err
@@ -133,6 +139,7 @@ func ContainerPodMgrInit(ctx *PodContainerInitCtx) error {
 			case <-t.C:
 				if err := kubeletPodListPortUpdate(ctx); err == nil {
 					log.Infof("kubelet is running now")
+					_ = kubeletCgroupDriver()
 					ContainerPodMgrClose()
 					break
 				}
@@ -381,4 +388,23 @@ func isRuningPod(pod *corev1.Pod) bool {
 	}
 
 	return true
+}
+
+func kubeletCgroupDriver() error {
+	data, err := os.ReadFile(kubeletDefaultConfPath)
+	if err != nil {
+		return fmt.Errorf("read %s: %w", kubeletDefaultConfPath, err)
+	}
+
+	var config kubeletconfig.KubeletConfiguration
+
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		return err
+	}
+
+	if config.CgroupDriver == "systemd" {
+		kubeletPodCgroupPrefix = "kubepods.slice"
+	}
+
+	return nil
 }
