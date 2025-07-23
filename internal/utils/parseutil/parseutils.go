@@ -42,7 +42,7 @@ func ReadInt(path string) (int64, error) {
 	return strconv.ParseInt(strings.TrimSpace(string(v)), 10, 64)
 }
 
-func ParseKV(raw string) (string, uint64, error) {
+func parseKV(raw string) (string, uint64, error) {
 	parts := strings.Fields(raw)
 	switch len(parts) {
 	case 2:
@@ -70,7 +70,7 @@ func ParseRawKV(path string) (map[string]uint64, error) {
 	)
 
 	for sc.Scan() {
-		key, v, err := ParseKV(sc.Text())
+		key, v, err := parseKV(sc.Text())
 		if err != nil {
 			return nil, err
 		}
@@ -82,4 +82,20 @@ func ParseRawKV(path string) (map[string]uint64, error) {
 	}
 
 	return raw, nil
+}
+
+func ParseKV(path string) (string, uint64, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", 0, err
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	scanner.Scan()
+	if err := scanner.Err(); err != nil {
+		return "", 0, err
+	}
+
+	return parseKV(scanner.Text())
 }

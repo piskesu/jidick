@@ -17,9 +17,9 @@ package collector
 import (
 	"fmt"
 
+	"huatuo-bamai/internal/cgroups/paths"
 	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/pod"
-	"huatuo-bamai/internal/utils/cgrouputil"
 	"huatuo-bamai/pkg/metric"
 	"huatuo-bamai/pkg/tracing"
 
@@ -86,7 +86,7 @@ func (c *loadavgCollector) Update() ([]*metric.Data, error) {
 	}
 
 	for _, container := range containers {
-		stats, err := n.GetCpuLoad(container.Hostname, cgrouputil.NewCPU().Path(container.CgroupSuffix))
+		stats, err := n.GetCpuLoad(container.Hostname, paths.Path("cpu", container.CgroupSuffix))
 		if err != nil {
 			log.Debugf("failed to get %s load, %v", container, err)
 			continue

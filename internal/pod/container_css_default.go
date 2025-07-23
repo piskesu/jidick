@@ -31,8 +31,8 @@ import (
 	"time"
 
 	"huatuo-bamai/internal/bpf"
+	"huatuo-bamai/internal/cgroups"
 	"huatuo-bamai/internal/log"
-	"huatuo-bamai/internal/utils/cgrouputil"
 	"huatuo-bamai/pkg/types"
 
 	mapset "github.com/deckarep/golang-set"
@@ -192,7 +192,7 @@ func cgroupCssNotify() {
 	rootSet := mapset.NewSet()
 
 	for _, subsys := range cgroupv1SubSysName {
-		root := cgrouputil.CgroupRootFsFilePath(subsys)
+		root := cgroups.RootFsFilePath(subsys)
 		realRoot, err := filepath.EvalSymlinks(root)
 		if err != nil {
 			continue

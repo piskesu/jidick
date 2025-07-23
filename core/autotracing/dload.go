@@ -25,11 +25,11 @@ import (
 	"strings"
 	"time"
 
+	"huatuo-bamai/internal/cgroups/paths"
 	"huatuo-bamai/internal/conf"
 	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/pod"
 	"huatuo-bamai/internal/storage"
-	"huatuo-bamai/internal/utils/cgrouputil"
 	"huatuo-bamai/pkg/tracing"
 	"huatuo-bamai/pkg/types"
 
@@ -204,14 +204,14 @@ func updateIDMap(m dloadIDMap) error {
 	for _, container := range containers {
 		if _, ok := m[container.ID]; ok {
 			m[container.ID].name = container.CgroupSuffix
-			m[container.ID].path = cgrouputil.NewCPU().Path(container.CgroupSuffix)
+			m[container.ID].path = paths.Path("cpu", container.CgroupSuffix)
 			m[container.ID].container = container
 			m[container.ID].alive = true
 			continue
 		}
 
 		m[container.ID] = &containerDloadInfo{
-			path:      cgrouputil.NewCPU().Path(container.CgroupSuffix),
+			path:      paths.Path("cpu", container.CgroupSuffix),
 			name:      container.CgroupSuffix,
 			container: container,
 			alive:     true,

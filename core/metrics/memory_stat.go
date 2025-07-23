@@ -17,25 +17,33 @@ package collector
 import (
 	"fmt"
 
+	"huatuo-bamai/internal/cgroups"
 	"huatuo-bamai/internal/conf"
 	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/pod"
-	"huatuo-bamai/internal/utils/cgrouputil"
-	"huatuo-bamai/internal/utils/parseutil"
 	"huatuo-bamai/pkg/metric"
 	"huatuo-bamai/pkg/tracing"
 )
 
-type memStatCollector struct{}
+type memStatCollector struct {
+	cgroup cgroups.Cgroup
+}
 
 func init() {
 	tracing.RegisterEventTracing("memory_stat", newMemStat)
 }
 
 func newMemStat() (*tracing.EventTracingAttr, error) {
+	cgroup, err := cgroups.NewCgroupManager()
+	if err != nil {
+		return nil, err
+	}
+
 	return &tracing.EventTracingAttr{
-		TracingData: &memStatCollector{},
-		Flag:        tracing.FlagMetric,
+		TracingData: &memStatCollector{
+			cgroup: cgroup,
+		},
+		Flag: tracing.FlagMetric,
 	}, nil
 }
 
@@ -50,7 +58,7 @@ func (c *memStatCollector) Update() ([]*metric.Data, error) {
 	}
 
 	for _, container := range containers {
-		raw, err := parseutil.ParseRawKV(cgrouputil.V1MemoryPath() + container.CgroupSuffix + "/memory.stat")
+		raw, err := c.cgroup.MemoryStatRaw(container.CgroupSuffix)
 		if err != nil {
 			log.Infof("parse %s memory.stat %v", container.CgroupSuffix, err)
 			continue

@@ -23,6 +23,8 @@ type ContainerType uint32
 const (
 	ContainerTypeSidecar ContainerType = 1 << iota
 	ContainerTypeDaemonSet
+	ContainerTypeNode
+	ContainerTypeStatic
 	ContainerTypeNormal
 	ContainerTypeUnknown
 	_containerTypeAll
@@ -35,6 +37,8 @@ var containerType2String = map[ContainerType]string{
 	ContainerTypeSidecar:   "Sidecar",
 	ContainerTypeDaemonSet: "DaemonSet",
 	ContainerTypeNormal:    "Normal",
+	ContainerTypeNode:      "Node",
+	ContainerTypeStatic:    "Static",
 	ContainerTypeUnknown:   "Unknown",
 }
 

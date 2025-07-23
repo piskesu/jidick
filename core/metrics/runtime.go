@@ -17,8 +17,8 @@ package collector
 import (
 	"time"
 
+	"huatuo-bamai/internal/cgroups"
 	"huatuo-bamai/internal/log"
-	"huatuo-bamai/internal/utils/cgrouputil"
 	"huatuo-bamai/internal/utils/parseutil"
 	"huatuo-bamai/pkg/metric"
 	"huatuo-bamai/pkg/tracing"
@@ -111,7 +111,7 @@ func getMemoryMetric(p *procfs.Proc) []*metric.Data {
 	data[0] = metric.NewGaugeData("memory_vss", float64(status.VmSize)/1024, "memory vss", nil)
 	data[1] = metric.NewGaugeData("memory_rss", float64(status.VmRSS)/1024, "memory rss", nil)
 
-	rssI, err := parseutil.ReadUint(cgrouputil.V1MemoryPath() + "/huatuo-bamai/memory.usage_in_bytes")
+	rssI, err := parseutil.ReadUint(cgroups.RootFsFilePath("memory") + "/huatuo-bamai/memory.usage_in_bytes")
 	if err != nil {
 		log.Warnf("can't ParseUint, err: %v", err)
 		return nil

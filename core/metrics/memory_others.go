@@ -16,11 +16,9 @@ package collector
 
 import (
 	"fmt"
-	"path/filepath"
 
-	"huatuo-bamai/internal/log"
+	"huatuo-bamai/internal/cgroups/paths"
 	"huatuo-bamai/internal/pod"
-	"huatuo-bamai/internal/utils/cgrouputil"
 	"huatuo-bamai/internal/utils/parseutil"
 	"huatuo-bamai/pkg/metric"
 	"huatuo-bamai/pkg/tracing"
@@ -40,8 +38,8 @@ func newMemOthersCollector() (*tracing.EventTracingAttr, error) {
 	}, nil
 }
 
-func parseValueWithKey(path, key string) (uint64, error) {
-	filePath := filepath.Join(cgrouputil.V1MemoryPath(), path)
+func parseValueWithKey(cgroupPath, cgroupFile, key string) (uint64, error) {
+	filePath := paths.Path("memory", cgroupPath, cgroupFile)
 	if key == "" {
 		return parseutil.ReadUint(filePath)
 	}
@@ -84,11 +82,9 @@ func (c *memOthersCollector) Update() ([]*metric.Data, error) {
 				name: "local_direct_reclaim_time",
 			},
 		} {
-			path := filepath.Join(container.CgroupSuffix, t.path)
-			value, err := parseValueWithKey(path, t.key)
+			value, err := parseValueWithKey(container.CgroupSuffix, t.path, t.key)
 			if err != nil {
 				// FIXME: os maynot support this metric
-				log.Debugf("parse %s: %s", path, err)
 				continue
 			}
 

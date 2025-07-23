@@ -17,15 +17,15 @@ package collector
 import (
 	"fmt"
 
+	"huatuo-bamai/internal/cgroups"
 	"huatuo-bamai/internal/conf"
 	"huatuo-bamai/internal/pod"
-	"huatuo-bamai/internal/utils/cgrouputil"
 	"huatuo-bamai/pkg/metric"
 	"huatuo-bamai/pkg/tracing"
 )
 
 type memEventsCollector struct {
-	mem cgrouputil.Memory
+	cgroup cgroups.Cgroup
 }
 
 func init() {
@@ -33,9 +33,14 @@ func init() {
 }
 
 func newMemEvents() (*tracing.EventTracingAttr, error) {
+	cgroup, err := cgroups.NewCgroupManager()
+	if err != nil {
+		return nil, err
+	}
+
 	return &tracing.EventTracingAttr{
 		TracingData: &memEventsCollector{
-			mem: *cgrouputil.NewMemory(),
+			cgroup: cgroup,
 		}, Flag: tracing.FlagMetric,
 	}, nil
 }
@@ -51,7 +56,7 @@ func (c *memEventsCollector) Update() ([]*metric.Data, error) {
 
 	metrics := []*metric.Data{}
 	for _, container := range containers {
-		raw, err := c.mem.EventsRaw(container.CgroupSuffix)
+		raw, err := c.cgroup.MemoryEventRaw(container.CgroupSuffix)
 		if err != nil {
 			return nil, err
 		}

@@ -19,9 +19,9 @@ import (
 	"sync"
 	"time"
 
+	"huatuo-bamai/internal/cgroups"
 	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/pod"
-	"huatuo-bamai/internal/utils/cgrouputil"
 	"huatuo-bamai/pkg/metric"
 	"huatuo-bamai/pkg/tracing"
 )
@@ -46,9 +46,8 @@ type cpuStat struct {
 }
 
 type cpuStatCollector struct {
-	cpu     *cgrouputil.CPU
-	cpuacct *cgrouputil.CPUAcct
-	mutex   sync.Mutex
+	cgroup cgroups.Cgroup
+	mutex  sync.Mutex
 }
 
 func init() {
@@ -57,10 +56,14 @@ func init() {
 }
 
 func newCPUStat() (*tracing.EventTracingAttr, error) {
+	cgroup, err := cgroups.NewCgroupManager()
+	if err != nil {
+		return nil, err
+	}
+
 	return &tracing.EventTracingAttr{
 		TracingData: &cpuStatCollector{
-			cpu:     cgrouputil.NewCPU(),
-			cpuacct: cgrouputil.NewCPUAcctDefault(),
+			cgroup: cgroup,
 		},
 		Flag: tracing.FlagMetric,
 	}, nil
@@ -82,12 +85,12 @@ func (c *cpuStatCollector) cpuMetricUpdate(cpu *cpuStat, container *pod.Containe
 		return nil
 	}
 
-	raw, err := c.cpu.StatRaw(container.CgroupSuffix)
+	raw, err := c.cgroup.CpuStatRaw(container.CgroupSuffix)
 	if err != nil {
 		return err
 	}
 
-	usageTotal, err := c.cpuacct.Usage(container.CgroupSuffix)
+	usage, err := c.cgroup.CpuUsage(container.CgroupSuffix)
 	if err != nil {
 		return err
 	}
@@ -99,7 +102,7 @@ func (c *cpuStatCollector) cpuMetricUpdate(cpu *cpuStat, container *pod.Containe
 		innerWaitSum:     raw["inner_wait_sum"],
 		nrBursts:         raw["nr_bursts"],
 		burstTime:        raw["burst_time"],
-		cpuTotal:         usageTotal,
+		cpuTotal:         usage.Usage * 1000,
 		lastUpdate:       now,
 	}
 

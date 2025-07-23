@@ -26,12 +26,12 @@ import (
 	_ "huatuo-bamai/core/events"
 	_ "huatuo-bamai/core/metrics"
 	"huatuo-bamai/internal/bpf"
+	"huatuo-bamai/internal/cgroups"
 	"huatuo-bamai/internal/conf"
 	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/pod"
 	"huatuo-bamai/internal/services"
 	"huatuo-bamai/internal/storage"
-	"huatuo-bamai/internal/utils/cgrouputil"
 	"huatuo-bamai/internal/utils/pidutil"
 	"huatuo-bamai/pkg/tracing"
 
@@ -49,13 +49,26 @@ func mainAction(ctx *cli.Context) error {
 	defer pidutil.RemovePidFile(ctx.App.Name)
 
 	// init cpu quota
-	host, err := cgrouputil.NewRuntimeCgroup(ctx.App.Name,
-		conf.Get().RuntimeCgroup.LimitInitCPU,
-		conf.Get().RuntimeCgroup.LimitMem)
+	cgr, err := cgroups.NewCgroupManager()
 	if err != nil {
-		return fmt.Errorf("new cgroup: %w", err)
+		return err
 	}
-	defer host.Delete()
+
+	if err := cgr.NewRuntime(ctx.App.Name,
+		cgroups.ToSpec(
+			conf.Get().RuntimeCgroup.LimitInitCPU,
+			conf.Get().RuntimeCgroup.LimitMem,
+		),
+	); err != nil {
+		return fmt.Errorf("new runtime cgroup: %w", err)
+	}
+	defer func() {
+		_ = cgr.DeleteRuntime()
+	}()
+
+	if err := cgr.AddProc(uint64(os.Getpid())); err != nil {
+		return fmt.Errorf("cgroup add pid to cgroups.proc")
+	}
 
 	// initialize the storage clients.
 	storageInitCtx := storage.InitContext{
@@ -112,8 +125,8 @@ func mainAction(ctx *cli.Context) error {
 	services.Start(conf.Get().APIServer.TCPAddr, mgr, prom)
 
 	// update cpu quota
-	if err := host.UpdateCPU(conf.Get().RuntimeCgroup.LimitCPU); err != nil {
-		return fmt.Errorf("cg update cpu: %w", err)
+	if err := cgr.UpdateRuntime(cgroups.ToSpec(conf.Get().RuntimeCgroup.LimitCPU, 0)); err != nil {
+		return fmt.Errorf("update runtime: %w", err)
 	}
 
 	waitExit := make(chan os.Signal, 1)

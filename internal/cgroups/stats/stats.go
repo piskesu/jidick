@@ -12,25 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cgrouputil
+package stats
 
-import (
-	"path/filepath"
-)
-
-var v1RootfsDefaultPath = "/sys/fs/cgroup"
-
-// CgroupRootFsFilePath join dir with cgroup rootfs
-func CgroupRootFsFilePath(name string) string {
-	return filepath.Join(v1RootfsDefaultPath, name)
+// usec, microsecond
+type CpuUsage struct {
+	Usage  uint64
+	User   uint64
+	System uint64
 }
 
-// V1CpuPath return the cpu dir in cgroup v1
-func V1CpuPath() string {
-	return v1RootfsDefaultPath + "/cpu"
-}
-
-// V1MemoryPath return the memory dir in cgroup v1
-func V1MemoryPath() string {
-	return v1RootfsDefaultPath + "/memory"
+type CpuQuota struct {
+	Quota  uint64
+	Period uint64
 }

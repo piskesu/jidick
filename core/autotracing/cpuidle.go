@@ -20,18 +20,17 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
+	"huatuo-bamai/internal/cgroups"
 	"huatuo-bamai/internal/conf"
 	"huatuo-bamai/internal/flamegraph"
 	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/pod"
 	"huatuo-bamai/internal/storage"
-	"huatuo-bamai/internal/utils/cgrouputil"
 	"huatuo-bamai/pkg/tracing"
 	"huatuo-bamai/pkg/types"
 )
@@ -90,36 +89,22 @@ func readIntFromFile(filePath string) (int, error) {
 }
 
 func readCPUUsage(path string) (map[string]uint64, error) {
-	cpuacctPath := path + "/cpuacct.stat"
-	output, err := os.ReadFile(cpuacctPath)
+	// FIXME!!!
+	cgr, err := cgroups.NewCgroupManager()
 	if err != nil {
 		return nil, err
 	}
 
-	cpuUsage := make(map[string]uint64)
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-
-		parts := strings.Fields(line)
-		if len(parts) != 2 {
-			continue
-		}
-
-		key := parts[0]
-		valueStr := parts[1]
-		value, err := strconv.ParseUint(valueStr, 10, 64)
-		if err != nil {
-			return nil, err
-		}
-
-		cpuUsage[key] = value
+	usage, err := cgr.CpuUsage(path)
+	if err != nil {
+		return nil, err
 	}
-	cpuUsage["total"] = uint64(time.Now().UnixNano())
-	return cpuUsage, nil
+
+	return map[string]uint64{
+		"user":   usage.User,
+		"system": usage.System,
+		"total":  uint64(time.Now().UnixNano()),
+	}, nil
 }
 
 // UserHZtons because kernel USER_HZ = 100, the default value set to 10,000,000
@@ -171,7 +156,7 @@ func updateCPUIdleIDMap(m cpuIdleIDMap) error {
 	for _, container := range containers {
 		_, ok := m[container.ID]
 		if ok {
-			m[container.ID].path = filepath.Join(cgrouputil.V1CpuPath(), container.CgroupSuffix)
+			m[container.ID].path = container.CgroupSuffix
 			m[container.ID].alive = true
 		} else {
 			temp := &containerCPUInfo{
@@ -191,7 +176,7 @@ func updateCPUIdleIDMap(m cpuIdleIDMap) error {
 				deltaUser: 0,
 				deltaSys:  0,
 				timestamp: 0,
-				path:      filepath.Join(cgrouputil.V1CpuPath(), container.CgroupSuffix),
+				path:      container.CgroupSuffix,
 				alive:     true,
 			}
 			m[container.ID] = temp

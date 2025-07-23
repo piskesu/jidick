@@ -28,32 +28,13 @@
    limitations under the License.
 */
 
-package cgrouputil
+package v1
 
-import (
-	"path/filepath"
-
-	"huatuo-bamai/internal/utils/parseutil"
-)
-
-// NewMemory new cpu obj with default rootfs
-func NewMemory() *Memory {
-	return &Memory{
-		root: V1MemoryPath(),
-	}
-}
-
-// Memory cgroup obj
-type Memory struct {
-	root string
-}
-
-// Path join path with cgroup v1 rootfs
-func (c *Memory) Path(path string) string {
-	return filepath.Join(c.root, path)
-}
-
-// EventsRaw return kv slice in memory.events
-func (c *Memory) EventsRaw(path string) (map[string]uint64, error) {
-	return parseutil.ParseRawKV(filepath.Join(c.Path(path), "memory.events"))
+func getClockTicks() uint64 {
+	// The value comes from `C.sysconf(C._SC_CLK_TCK)`, and
+	// on Linux it's a constant which is safe to be hard coded,
+	// so we can avoid using cgo here.
+	// See https://github.com/containerd/cgroups/pull/12 for
+	// more details.
+	return 100
 }

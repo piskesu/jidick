@@ -15,14 +15,15 @@
 package collector
 
 import (
+	"math"
 	"reflect"
 	"runtime"
 	"sync"
 	"time"
 
+	"huatuo-bamai/internal/cgroups"
 	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/pod"
-	"huatuo-bamai/internal/utils/cgrouputil"
 	"huatuo-bamai/pkg/metric"
 	"huatuo-bamai/pkg/tracing"
 )
@@ -39,8 +40,7 @@ type cpuMetric struct {
 
 type cpuUtilCollector struct {
 	cpuUtil []*metric.Data
-	cpuacct *cgrouputil.CPUAcct
-	cpu     *cgrouputil.CPU
+	cgroup  cgroups.Cgroup
 
 	// included struct for used in multi modules
 	hostCPUCount  int
@@ -55,6 +55,11 @@ func init() {
 }
 
 func newCPUUtil() (*tracing.EventTracingAttr, error) {
+	cgroup, err := cgroups.NewCgroupManager()
+	if err != nil {
+		return nil, err
+	}
+
 	return &tracing.EventTracingAttr{
 		TracingData: &cpuUtilCollector{
 			cpuUtil: []*metric.Data{
@@ -62,9 +67,8 @@ func newCPUUtil() (*tracing.EventTracingAttr, error) {
 				metric.NewGaugeData("sys", 0, "sys for container and host", nil),
 				metric.NewGaugeData("total", 0, "total for container and host", nil),
 			},
-			cpuacct:      cgrouputil.NewCPUAcctDefault(),
-			cpu:          cgrouputil.NewCPU(),
 			hostCPUCount: runtime.NumCPU(),
+			cgroup:       cgroup,
 		},
 		Flag: tracing.FlagMetric,
 	}, nil
@@ -90,15 +94,14 @@ func (c *cpuUtilCollector) cpuMetricUpdate(cpuMetric *cpuMetric, container *pod.
 		cgroupPath = container.CgroupSuffix
 	}
 
-	usageTotal, err := c.cpuacct.Usage(cgroupPath)
+	stat, err := c.cgroup.CpuUsage(cgroupPath)
 	if err != nil {
 		return err
 	}
 
-	usageUsr, usageSys, err := c.cpuacct.Stat(cgroupPath)
-	if err != nil {
-		return err
-	}
+	usageTotal := stat.Usage
+	usageUsr := stat.User
+	usageSys := stat.System
 
 	// allow statistics 0
 	deltaTotal := usageTotal - cpuMetric.lastCPUTotal
@@ -149,11 +152,17 @@ func (c *cpuUtilCollector) Update() ([]*metric.Data, error) {
 	}
 
 	for _, container := range containers {
-		count, err := c.cpu.CPUNum(container.CgroupSuffix)
+		cpuQuota, err := c.cgroup.CpuQuotaAndPeriod(container.CgroupSuffix)
 		if err != nil {
-			log.Infof("failed to get cpu count of %s, %v", container, err)
+			log.Infof("fetch container [%s] cpu quota and period: %v", container, err)
 			continue
 		}
+
+		if cpuQuota.Quota == math.MaxUint64 {
+			continue
+		}
+
+		count := int(cpuQuota.Quota / cpuQuota.Period)
 
 		containerMetric := container.LifeResouces("collector_cpu_util").(*cpuMetric)
 		if err := c.cpuMetricUpdate(containerMetric, container, count); err != nil {
