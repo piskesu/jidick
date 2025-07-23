@@ -44,7 +44,7 @@ func parseValueWithKey(cgroupPath, cgroupFile, key string) (uint64, error) {
 		return parseutil.ReadUint(filePath)
 	}
 
-	raw, err := parseutil.ParseRawKV(filePath)
+	raw, err := parseutil.RawKV(filePath)
 	if err != nil {
 		return 0, err
 	}

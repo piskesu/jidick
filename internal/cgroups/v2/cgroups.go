@@ -84,7 +84,7 @@ func (c *CgroupV2) AddProc(pid uint64) error {
 }
 
 func (c *CgroupV2) CpuStatRaw(path string) (map[string]uint64, error) {
-	return parseutil.ParseRawKV(paths.Path(path, "cpu.stat"))
+	return parseutil.RawKV(paths.Path(path, "cpu.stat"))
 }
 
 func (c *CgroupV2) CpuUsage(path string) (*stats.CpuUsage, error) {
@@ -103,7 +103,7 @@ func (c *CgroupV2) CpuUsage(path string) (*stats.CpuUsage, error) {
 func (c *CgroupV2) CpuQuotaAndPeriod(path string) (*stats.CpuQuota, error) {
 	maxpath := paths.Path(path, "cpu.max")
 
-	maxQuota, period, err := parseutil.ParseKV(maxpath)
+	maxQuota, period, err := parseutil.KV(maxpath)
 	if err != nil {
 		return nil, err
 	}
@@ -121,9 +121,9 @@ func (c *CgroupV2) CpuQuotaAndPeriod(path string) (*stats.CpuQuota, error) {
 }
 
 func (c *CgroupV2) MemoryStatRaw(path string) (map[string]uint64, error) {
-	return parseutil.ParseRawKV(paths.Path(path, "memory.stat"))
+	return parseutil.RawKV(paths.Path(path, "memory.stat"))
 }
 
 func (c *CgroupV2) MemoryEventRaw(path string) (map[string]uint64, error) {
-	return parseutil.ParseRawKV(paths.Path(path, "memory.events"))
+	return parseutil.RawKV(paths.Path(path, "memory.events"))
 }

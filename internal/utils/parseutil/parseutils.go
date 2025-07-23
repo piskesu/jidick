@@ -56,8 +56,8 @@ func parseKV(raw string) (string, uint64, error) {
 	}
 }
 
-// ParseRawKV parse the kv cgroup file
-func ParseRawKV(path string) (map[string]uint64, error) {
+// RawKV parse the kv cgroup file
+func RawKV(path string) (map[string]uint64, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -84,7 +84,7 @@ func ParseRawKV(path string) (map[string]uint64, error) {
 	return raw, nil
 }
 
-func ParseKV(path string) (string, uint64, error) {
+func KV(path string) (string, uint64, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return "", 0, err

@@ -94,7 +94,7 @@ func (c *CgroupV1) AddProc(pid uint64) error {
 
 func (c *CgroupV1) CpuUsage(path string) (*stats.CpuUsage, error) {
 	statPath := paths.Path(subsysCpu, path, "cpuacct.stat")
-	raw, err := parseutil.ParseRawKV(statPath)
+	raw, err := parseutil.RawKV(statPath)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func (c *CgroupV1) CpuUsage(path string) (*stats.CpuUsage, error) {
 }
 
 func (c *CgroupV1) CpuStatRaw(path string) (map[string]uint64, error) {
-	return parseutil.ParseRawKV(paths.Path(subsysCpu, path, "cpu.stat"))
+	return parseutil.RawKV(paths.Path(subsysCpu, path, "cpu.stat"))
 }
 
 func (c *CgroupV1) CpuQuotaAndPeriod(path string) (*stats.CpuQuota, error) {
@@ -146,9 +146,9 @@ func (c *CgroupV1) CpuQuotaAndPeriod(path string) (*stats.CpuQuota, error) {
 }
 
 func (c *CgroupV1) MemoryStatRaw(path string) (map[string]uint64, error) {
-	return parseutil.ParseRawKV(paths.Path(subsysMemory, path, "memory.stat"))
+	return parseutil.RawKV(paths.Path(subsysMemory, path, "memory.stat"))
 }
 
 func (c *CgroupV1) MemoryEventRaw(path string) (map[string]uint64, error) {
-	return parseutil.ParseRawKV(paths.Path(subsysMemory, path, "memory.events"))
+	return parseutil.RawKV(paths.Path(subsysMemory, path, "memory.events"))
 }
