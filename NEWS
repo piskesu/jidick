@@ -4,6 +4,9 @@ v2.0 - WIP
     - 支持 softirq percpu 指标
     - 支持 golangci 静态检查
     - 支持组件的 cgroupv2 资源限制 
+    - 支持独立的 cgroup package, 应用无感知 cgroup 运行时类型
+    - 支持根据 kubelet 配置自动更新 cgroup prefix
+    - 若干代码优化和 BUG 修复
 
 v1.0 - 2025-07-13
 ---------------------
