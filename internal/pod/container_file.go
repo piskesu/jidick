@@ -21,7 +21,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -30,7 +29,6 @@ import (
 
 	dockertypes "github.com/docker/docker/api/types"
 	dockerclient "github.com/docker/docker/client"
-	corev1 "k8s.io/api/core/v1"
 	k8sremote "k8s.io/cri-client/pkg"
 )
 
@@ -154,13 +152,4 @@ func containerInitPidInContainerd(containerID string) (int, error) {
 	filePath := filepath.Join(containerdStateDir, "io.containerd.runtime.v2.task", "k8s.io", containerID, "init.pid")
 
 	return pidutil.Read(filePath)
-}
-
-func containerCgroupSuffix(containerID string, pod *corev1.Pod) string {
-	if pod.Status.QOSClass == corev1.PodQOSGuaranteed {
-		return fmt.Sprintf("/%s/pod%s/%s", kubeletPodCgroupPrefix, pod.UID, containerID)
-	}
-
-	return fmt.Sprintf("/%s/%s/pod%s/%s", kubeletPodCgroupPrefix,
-		strings.ToLower(string(pod.Status.QOSClass)), pod.UID, containerID)
 }

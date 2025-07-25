@@ -48,7 +48,7 @@ var (
 	kubeletHttpsClient                 *http.Client
 	kubeletTimeTicker                  *time.Ticker
 	kubeletDoneCancel                  context.CancelFunc
-	kubeletPodCgroupPrefix             = "kubepods"
+	kubeletPodCgroupDriver             = "cgroupfs"
 )
 
 type PodContainerInitCtx struct {
@@ -402,8 +402,11 @@ func kubeletCgroupDriver() error {
 		return err
 	}
 
+	// cgroupfs as default of kubelet
+	// config.CgroupDriver is read from config file, which may be any
+	// string, such as systemdxxx (in this case, kubelet use cgroupfs)
 	if config.CgroupDriver == "systemd" {
-		kubeletPodCgroupPrefix = "kubepods.slice"
+		kubeletPodCgroupDriver = config.CgroupDriver
 	}
 
 	return nil
