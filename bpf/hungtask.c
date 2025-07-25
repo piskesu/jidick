@@ -9,8 +9,7 @@
 
 char __license[] SEC("license") = "Dual MIT/GPL";
 
-#define CPU_NUM 128
-BPF_RATELIMIT_IN_MAP(rate, 1, CPU_NUM * 10000, 0);
+BPF_RATELIMIT_IN_MAP(rate, 1, COMPAT_CPU_NUM * 10000, 0);
 
 struct {
 	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);

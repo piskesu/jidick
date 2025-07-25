@@ -10,6 +10,7 @@
 
 #define COMPAT_TASK_COMM_LEN   16
 #define PATH_MAX        4096    /* # chars in a path name including nul */
+#define COMPAT_CPU_NUM 128
 
 /* include/uapi/linux/perf_event.h */
 #define PERF_MAX_STACK_DEPTH	127

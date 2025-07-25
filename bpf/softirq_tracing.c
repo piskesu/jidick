@@ -15,9 +15,8 @@ char __license[] SEC("license") = "Dual MIT/GPL";
 
 volatile const u64 softirq_thresh = SOFTIRQ_THRESH;
 
-#define CPU_NUM 128
 #define TICK 1000
-BPF_RATELIMIT(rate, 1, CPU_NUM *TICK * 1000);
+BPF_RATELIMIT(rate, 1, COMPAT_CPU_NUM *TICK * 1000);
 
 struct timer_softirq_run_ts {
 	u32 start_trace;
