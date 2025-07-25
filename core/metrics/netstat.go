@@ -49,10 +49,9 @@ func (c *netstatCollector) Update() ([]*metric.Data, error) {
 	filter := newFieldFilter(conf.Get().MetricCollector.Netstat.ExcludedMetrics, conf.Get().MetricCollector.Netstat.IncludedMetrics)
 	log.Debugf("Updating netstat metrics by filter: %v", filter)
 
-	// normal containers
 	containers, err := pod.GetNormalContainers()
 	if err != nil {
-		return nil, fmt.Errorf("GetNormalContainers: %w", err)
+		return nil, err
 	}
 
 	// support the empty container

@@ -58,7 +58,7 @@ func (c *memoryCgroup) Update() ([]*metric.Data, error) {
 	containersMap := make(map[uint64]*pod.Container)
 	containers, err := pod.GetNormalContainers()
 	if err != nil {
-		return nil, fmt.Errorf("Can't get normal container: %w", err)
+		return nil, fmt.Errorf("get container: %w", err)
 	}
 
 	for _, container := range containers {
@@ -67,7 +67,7 @@ func (c *memoryCgroup) Update() ([]*metric.Data, error) {
 
 	items, err := c.bpf.DumpMapByName("mem_cgroup_map")
 	if err != nil {
-		return nil, fmt.Errorf("Can't dump mem_cgroup_map: %w", err)
+		return nil, fmt.Errorf("dump mem_cgroup_map: %w", err)
 	}
 
 	var (

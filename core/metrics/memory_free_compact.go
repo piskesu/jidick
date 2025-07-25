@@ -66,7 +66,7 @@ func (c *memoryHost) Update() ([]*metric.Data, error) {
 
 	items, err := c.bpf.DumpMapByName("mm_free_compact_map")
 	if err != nil {
-		return nil, fmt.Errorf("Can't dump mm_host_metrictable_relay: %w", err)
+		return nil, fmt.Errorf("dump map mm_free_compact_map: %w", err)
 	}
 
 	if len(items) == 0 {

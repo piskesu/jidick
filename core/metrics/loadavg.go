@@ -75,7 +75,6 @@ func (c *loadavgCollector) Update() ([]*metric.Data, error) {
 
 	n, err := netlink.New()
 	if err != nil {
-		log.Infof("Failed to create netlink: %s", err)
 		return nil, err
 	}
 	defer n.Stop()

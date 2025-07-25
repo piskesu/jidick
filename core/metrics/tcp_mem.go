@@ -90,7 +90,6 @@ func (c *tcpMemCollector) getTCPMem() (tcpMem, tcpMemBytes, tcpMemLimit float64,
 func (c *tcpMemCollector) Update() ([]*metric.Data, error) {
 	tcpMem, tcpMemBytes, tcpMemLimit, err := c.getTCPMem()
 	if err != nil {
-		log.Infof("couldn't get tcpmem: %v", err)
 		return nil, err
 	}
 

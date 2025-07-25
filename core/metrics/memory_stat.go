@@ -54,7 +54,7 @@ func (c *memStatCollector) Update() ([]*metric.Data, error) {
 	metrics := []*metric.Data{}
 	containers, err := pod.GetNormalContainers()
 	if err != nil {
-		return nil, fmt.Errorf("GetNormalContainers: %w", err)
+		return nil, err
 	}
 
 	for _, container := range containers {

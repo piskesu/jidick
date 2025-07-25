@@ -177,7 +177,6 @@ func (c *cpuUtilCollector) Update() ([]*metric.Data, error) {
 	}
 
 	if err := c.hostMetricUpdate(); err != nil {
-		log.Errorf("c.hostCpuMetricUpdate :%v", err)
 		return nil, err
 	}
 

@@ -72,7 +72,6 @@ func (c *vmStatCollector) Update() ([]*metric.Data, error) {
 
 	file, err := os.Open("/proc/vmstat")
 	if err != nil {
-		log.Error("Fail to open vmstat")
 		return nil, err
 	}
 	defer file.Close()
@@ -86,7 +85,6 @@ func (c *vmStatCollector) Update() ([]*metric.Data, error) {
 		}
 		value, err := strconv.ParseFloat(parts[1], 64)
 		if err != nil {
-			log.Error("Fail to strconv")
 			return nil, err
 		}
 		metrics = append(metrics,

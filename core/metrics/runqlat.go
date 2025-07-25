@@ -15,7 +15,6 @@
 package collector
 
 import (
-	"fmt"
 	"reflect"
 
 	"huatuo-bamai/internal/pod"
@@ -58,7 +57,7 @@ func (c *runqlatCollector) Update() ([]*metric.Data, error) {
 
 	containers, err := pod.GetContainersByType(pod.ContainerTypeNormal)
 	if err != nil {
-		return nil, fmt.Errorf("GetContainersByType: %w", err)
+		return nil, err
 	}
 
 	for _, container := range containers {
