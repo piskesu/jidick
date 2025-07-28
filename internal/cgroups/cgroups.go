@@ -29,6 +29,20 @@ import (
 
 var cpuPeriod uint64 = 100000
 
+// Mode is the cgroups mode of the host system
+type Mode int
+
+const (
+	// Unavailable cgroup mountpoint
+	Unavailable Mode = iota
+	// Legacy cgroups v1
+	Legacy
+	// Hybrid with cgroups v1 and v2 controllers mounted
+	Hybrid
+	// Unified with only cgroups v2 mounted
+	Unified
+)
+
 type Cgroup interface {
 	// Name returns the cgroup name.
 	Name() string
@@ -61,6 +75,10 @@ func NewCgroupManager() (Cgroup, error) {
 	default:
 		return nil, fmt.Errorf("not supported")
 	}
+}
+
+func CgroupMode() Mode {
+	return Mode(extcgroups.Mode())
 }
 
 func ToSpec(cpu float64, memory int64) *specs.LinuxResources {
