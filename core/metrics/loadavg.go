@@ -15,10 +15,8 @@
 package collector
 
 import (
-	"fmt"
-
+	"huatuo-bamai/internal/cgroups"
 	"huatuo-bamai/internal/cgroups/paths"
-	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/pod"
 	"huatuo-bamai/pkg/metric"
 	"huatuo-bamai/pkg/tracing"
@@ -70,9 +68,7 @@ func (c *loadavgCollector) hostLoadAvg() error {
 	return nil
 }
 
-func (c *loadavgCollector) Update() ([]*metric.Data, error) {
-	loadAvgMetrics := []*metric.Data{}
-
+func containerLoadavg() ([]*metric.Data, error) {
 	n, err := netlink.New()
 	if err != nil {
 		return nil, err
@@ -81,25 +77,41 @@ func (c *loadavgCollector) Update() ([]*metric.Data, error) {
 
 	containers, err := pod.GetContainersByType(pod.ContainerTypeNormal | pod.ContainerTypeSidecar)
 	if err != nil {
-		return nil, fmt.Errorf("GetContainersByType: %w", err)
+		return nil, err
 	}
 
+	loadavgs := []*metric.Data{}
 	for _, container := range containers {
 		stats, err := n.GetCpuLoad(container.Hostname, paths.Path("cpu", container.CgroupSuffix))
 		if err != nil {
-			log.Debugf("failed to get %s load, %v", container, err)
 			continue
 		}
 
-		loadAvgMetrics = append(loadAvgMetrics,
-			metric.NewContainerGaugeData(container, "nr_running", float64(stats.NrRunning), "nr_running of container", nil),
-			metric.NewContainerGaugeData(container, "nr_uninterruptible", float64(stats.NrUninterruptible), "nr_uninterruptible of container", nil))
+		loadavgs = append(loadavgs,
+			metric.NewContainerGaugeData(container,
+				"nr_running", float64(stats.NrRunning),
+				"nr_running of container", nil),
+			metric.NewContainerGaugeData(container,
+				"nr_uninterruptible", float64(stats.NrUninterruptible),
+				"nr_uninterruptible of container", nil))
+	}
+
+	return loadavgs, nil
+}
+
+func (c *loadavgCollector) Update() ([]*metric.Data, error) {
+	loadavgs := []*metric.Data{}
+
+	if cgroups.CgroupMode() == cgroups.Legacy {
+		if containersLoads, err := containerLoadavg(); err == nil {
+			loadavgs = append(loadavgs, containersLoads...)
+		}
 	}
 
 	if err := c.hostLoadAvg(); err != nil {
 		return nil, err
 	}
 
-	loadAvgMetrics = append(loadAvgMetrics, c.loadAvg...)
-	return loadAvgMetrics, nil
+	loadavgs = append(loadavgs, c.loadAvg...)
+	return loadavgs, nil
 }
