@@ -78,7 +78,7 @@ const (
 	taskCgroupType = 2
 )
 
-const debugDload = true
+const debugDload = false
 
 type containersDloadMap map[string]*containerDloadInfo
 
