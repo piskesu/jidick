@@ -15,16 +15,13 @@
 package autotracing
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"os"
-	"strconv"
-	"strings"
 	"time"
 
+	"huatuo-bamai/internal/cgroups"
 	"huatuo-bamai/internal/cgroups/paths"
 	"huatuo-bamai/internal/conf"
 	"huatuo-bamai/internal/log"
@@ -33,6 +30,7 @@ import (
 	"huatuo-bamai/pkg/tracing"
 	"huatuo-bamai/pkg/types"
 
+	cadvisorV1 "github.com/google/cadvisor/info/v1"
 	"github.com/google/cadvisor/utils/cpuload/netlink"
 	"github.com/prometheus/procfs"
 	"github.com/shirou/gopsutil/process"
@@ -62,7 +60,6 @@ type containerDloadInfo struct {
 }
 
 type DloadTracingData struct {
-	Avg               float64 `json:"avg"`
 	Threshold         float64 `json:"threshold"`
 	NrSleeping        uint64  `json:"nr_sleeping"`
 	NrRunning         uint64  `json:"nr_running"`
@@ -76,141 +73,33 @@ type DloadTracingData struct {
 	Stack             string  `json:"stack"`
 }
 
-func getStack(targetPid int32) (string, error) {
-	procStack := "/proc/" + strconv.Itoa(int(targetPid)) + "/stack"
-	content, err := os.ReadFile(procStack)
-	if err != nil {
-		log.Infof("%v", err)
-		return "", err
-	}
-
-	return string(content), nil
-}
-
 const (
-	isHost = 1
-	isCgrp = 2
+	taskHostType   = 1
+	taskCgroupType = 2
 )
 
-func getUnTaskList(cgrpPath string, infoType int) ([]int32, error) {
-	var pidList []int32
-	var err error
+const debugDload = true
 
-	if infoType == isCgrp {
-		taskPath := cgrpPath + "/tasks"
+type containersDloadMap map[string]*containerDloadInfo
 
-		tskfi, err := os.Open(taskPath)
-		if err != nil {
-			log.Infof("%v", err)
-			return nil, err
-		}
+var containersDloads = make(containersDloadMap)
 
-		r := bufio.NewReader(tskfi)
-
-		for {
-			lineBytes, err := r.ReadBytes('\n')
-			line := strings.TrimSpace(string(lineBytes))
-			if err != nil && err != io.EOF {
-				log.Infof("fail to read tasklist: %v", err)
-				break
-			}
-			if err == io.EOF {
-				break
-			}
-
-			pid, _ := strconv.ParseInt(line, 10, 32)
-			pidList = append(pidList, int32(pid))
-		}
-	} else {
-		procs, err := procfs.AllProcs()
-		if err != nil {
-			log.Infof("%v", err)
-			return nil, err
-		}
-
-		for _, p := range procs {
-			pidList = append(pidList, int32(p.PID))
-		}
-	}
-
-	return pidList, err
-}
-
-func dumpUnTaskStack(tskList []int32, dumpType int) (string, error) {
-	var infoTitle string
-	var getValidStackinfo bool = false
-	var strResult string = ""
-
-	stackInfo := new(bytes.Buffer)
-
-	switch dumpType {
-	case isHost:
-		infoTitle = "\nbacktrace of D process in Host:\n"
-	case isCgrp:
-		infoTitle = "\nbacktrace of D process in Cgroup:\n"
-	}
-
-	for _, pid := range tskList {
-		proc, err := process.NewProcess(pid)
-		if err != nil {
-			log.Debugf("fail to get process %d: %v", pid, err)
-			continue
-		}
-
-		status, err := proc.Status()
-		if err != nil {
-			log.Debugf("fail to get status %d: %v", pid, err)
-			continue
-		}
-
-		if status == "D" || status == "U" {
-			comm, err := proc.Name()
-			if err != nil {
-				log.Infof("%v", err)
-				continue
-			}
-			stack, err := getStack(pid)
-			if err != nil {
-				log.Infof("%v", err)
-				continue
-			}
-			if stack == "" {
-				continue
-			}
-
-			fmt.Fprintf(stackInfo, "Comm: %s\tPid: %d\n%s\n", comm, pid, stack)
-			getValidStackinfo = true
-		}
-	}
-
-	if getValidStackinfo {
-		strResult = fmt.Sprintf("%s%s", infoTitle, stackInfo)
-	}
-
-	return strResult, nil
-}
-
-// dloadIDMap is the container information
-type dloadIDMap map[string]*containerDloadInfo
-
-var dloadIdMap = make(dloadIDMap)
-
-func updateIDMap(m dloadIDMap) error {
+func updateContainersDload() error {
 	containers, err := pod.GetAllContainers()
 	if err != nil {
-		return fmt.Errorf("GetAllContainers: %w", err)
+		return err
 	}
 
 	for _, container := range containers {
-		if _, ok := m[container.ID]; ok {
-			m[container.ID].name = container.CgroupSuffix
-			m[container.ID].path = paths.Path("cpu", container.CgroupSuffix)
-			m[container.ID].container = container
-			m[container.ID].alive = true
+		if _, ok := containersDloads[container.ID]; ok {
+			containersDloads[container.ID].name = container.CgroupSuffix
+			containersDloads[container.ID].path = paths.Path("cpu", container.CgroupSuffix)
+			containersDloads[container.ID].container = container
+			containersDloads[container.ID].alive = true
 			continue
 		}
 
-		m[container.ID] = &containerDloadInfo{
+		containersDloads[container.ID] = &containerDloadInfo{
 			path:      paths.Path("cpu", container.CgroupSuffix),
 			name:      container.CgroupSuffix,
 			container: container,
@@ -218,6 +107,92 @@ func updateIDMap(m dloadIDMap) error {
 		}
 	}
 
+	return nil
+}
+
+func detectDloadContainer(thresh float64, interval int) (*containerDloadInfo, cadvisorV1.LoadStats, error) {
+	empty := cadvisorV1.LoadStats{}
+
+	n, err := netlink.New()
+	if err != nil {
+		return nil, empty, err
+	}
+	defer n.Stop()
+
+	for containerId, dload := range containersDloads {
+		if !dload.alive {
+			delete(containersDloads, containerId)
+		} else {
+			dload.alive = false
+
+			timeStart := dload.container.StartedAt.Add(time.Second * time.Duration(interval))
+			if time.Now().Before(timeStart) {
+				log.Debugf("%s were just started, we'll start monitoring it later.", dload.container.Hostname)
+				continue
+			}
+
+			stats, err := n.GetCpuLoad(dload.name, dload.path)
+			if err != nil {
+				log.Debugf("failed to get %s load, probably the container has been deleted: %s", dload.container.Hostname, err)
+				continue
+			}
+
+			updateLoad(dload, stats.NrRunning, stats.NrUninterruptible)
+
+			if dload.loaduni[0] > thresh || debugDload {
+				log.Infof("dload event: Threshold=%0.2f %+v, LoadAvg=%0.2f, DLoadAvg=%0.2f",
+					thresh, stats, dload.load[0], dload.loaduni[0])
+
+				return dload, stats, nil
+			}
+		}
+	}
+
+	return nil, empty, fmt.Errorf("no dload containers")
+}
+
+func buildAndSaveDloadContainer(thresh float64, container *containerDloadInfo, loadstat cadvisorV1.LoadStats) error {
+	cgrpPath := container.name
+	containerID := container.container.ID
+	containerHostNamespace := container.container.LabelHostNamespace()
+
+	stackCgrp, err := dumpUninterruptibleTaskStack(taskCgroupType, cgrpPath, debugDload)
+	if err != nil {
+		return err
+	}
+
+	if stackCgrp == "" {
+		return nil
+	}
+
+	stackHost, err := dumpUninterruptibleTaskStack(taskHostType, "", debugDload)
+	if err != nil {
+		return err
+	}
+
+	data := &DloadTracingData{
+		NrSleeping:        loadstat.NrSleeping,
+		NrRunning:         loadstat.NrRunning,
+		NrStopped:         loadstat.NrStopped,
+		NrUninterruptible: loadstat.NrUninterruptible,
+		NrIoWait:          loadstat.NrIoWait,
+		LoadAvg:           container.load[0],
+		DLoadAvg:          container.loaduni[0],
+		Threshold:         thresh,
+		Stack:             fmt.Sprintf("%s%s", stackCgrp, stackHost),
+	}
+
+	// Check if this is caused by known issues.
+	knownIssue, inKnownList := conf.KnownIssueSearch(stackCgrp, containerHostNamespace, "")
+	if knownIssue != "" {
+		data.KnowIssue = knownIssue
+		data.InKnownList = inKnownList
+	} else {
+		data.KnowIssue = "none"
+		data.InKnownList = inKnownList
+	}
+
+	storage.Save("dload", containerID, time.Now(), data)
 	return nil
 }
 
@@ -283,144 +258,109 @@ func updateLoad(info *containerDloadInfo, nrRunning, nrUninterruptible uint64) {
 	info.loaduni = getAvenrun(info.avgnuni, fixed1/200, 0)
 }
 
-func detect(ctx context.Context) (*containerDloadInfo, string, *DloadTracingData, error) {
-	var caseData DloadTracingData
+func pidStack(pid int32) string {
+	data, _ := os.ReadFile(fmt.Sprintf("/proc/%d/stack", pid))
+	return string(data)
+}
 
-	n, err := netlink.New()
-	if err != nil {
-		log.Infof("Failed to create cpu load util: %s", err)
-		return nil, "", nil, err
-	}
-	defer n.Stop()
-
-	dloadThresh := conf.Get().Tracing.Dload.ThresholdLoad
-	monitorGap := conf.Get().Tracing.Dload.MonitorGap
-
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, "", nil, types.ErrExitByCancelCtx
-		default:
-			if err := updateIDMap(dloadIdMap); err != nil {
-				return nil, "", nil, err
-			}
-			for k, v := range dloadIdMap {
-				if !v.alive {
-					delete(dloadIdMap, k)
-				} else {
-					v.alive = false
-
-					timeStartMonitor := v.container.StartedAt.Add(time.Second * time.Duration(monitorGap))
-
-					if time.Now().Before(timeStartMonitor) {
-						log.Debugf("%s were just started, we'll start monitoring it later.", v.container.Hostname)
-						continue
-					}
-
-					stats, err := n.GetCpuLoad(v.name, v.path)
-					if err != nil {
-						log.Debugf("failed to get %s load, probably the container has been deleted: %s", v.container.Hostname, err)
-						continue
-					}
-
-					updateLoad(v, stats.NrRunning, stats.NrUninterruptible)
-
-					if v.loaduni[0] > dloadThresh {
-						logTitle := fmt.Sprintf("Avg=%0.2f Threshold=%0.2f %+v ", v.loaduni[0], dloadThresh, stats)
-						logBody := fmt.Sprintf("LoadAvg=%0.2f, DLoadAvg=%0.2f", v.load[0], v.loaduni[0])
-						logLoad := fmt.Sprintf("%s%s", logTitle, logBody)
-
-						log.Infof("dload event %s", logLoad)
-
-						caseData.Avg = v.loaduni[0]
-						caseData.Threshold = dloadThresh
-						caseData.NrSleeping = stats.NrSleeping
-						caseData.NrRunning = stats.NrRunning
-						caseData.NrStopped = stats.NrStopped
-						caseData.NrUninterruptible = stats.NrUninterruptible
-						caseData.NrIoWait = stats.NrIoWait
-						caseData.LoadAvg = v.load[0]
-						caseData.DLoadAvg = v.loaduni[0]
-
-						return v, logLoad, &caseData, err
-					}
-				}
-			}
-			time.Sleep(5 * time.Second)
+func cgroupHostTasks(where int, path string) ([]int32, error) {
+	switch where {
+	case taskCgroupType:
+		cgroup, err := cgroups.NewCgroupManager()
+		if err != nil {
+			return nil, err
 		}
+
+		return cgroup.Pids(path)
+	case taskHostType:
+		var pidList []int32
+
+		procs, err := procfs.AllProcs()
+		if err != nil {
+			return nil, err
+		}
+
+		for _, p := range procs {
+			pidList = append(pidList, int32(p.PID))
+		}
+		return pidList, err
+	default:
+		return nil, fmt.Errorf("type not supported")
 	}
 }
 
-func dumpInfo(info *containerDloadInfo, logLoad string, caseData *DloadTracingData) error {
-	var tskList []int32
-	var err error
-	var stackCgrp string
-	var stackHost string
-	var containerHostNamespace string
+func dumpUninterruptibleTaskStack(where int, path string, all bool) (string, error) {
+	var appended bool = false
 
-	cgrpPath := info.path
-	containerID := info.container.ID
-	containerHostNamespace = info.container.LabelHostNamespace()
+	stacks := new(bytes.Buffer)
 
-	tskList, err = getUnTaskList(cgrpPath, isCgrp)
+	tasks, err := cgroupHostTasks(where, path)
 	if err != nil {
-		return fmt.Errorf("failed to get cgroup task list: %w", err)
+		return "", err
 	}
 
-	stackCgrp, err = dumpUnTaskStack(tskList, isCgrp)
-	if err != nil {
-		return fmt.Errorf("failed to dump cgroup task backtrace: %w", err)
+	for _, pid := range tasks {
+		proc, err := process.NewProcess(pid)
+		if err != nil {
+			continue
+		}
+
+		status, err := proc.Status()
+		if err != nil {
+			continue
+		}
+
+		if status == "D" || status == "U" || all {
+			comm, err := proc.Name()
+			if err != nil {
+				continue
+			}
+			stack := pidStack(pid)
+			if stack == "" {
+				continue
+			}
+
+			fmt.Fprintf(stacks, "Comm: %s\tPid: %d\n%s\n", comm, pid, stack)
+			appended = true
+		}
 	}
 
-	tskList, err = getUnTaskList("", isHost)
-	if err != nil {
-		return fmt.Errorf("failed to get host task list: %w", err)
+	if appended {
+		title := "\nstacktrace of D task in cgroup:\n"
+		if where == taskHostType {
+			title = "\nstacktrace of D task in host:\n"
+		}
+
+		return fmt.Sprintf("%s%s", title, stacks), nil
 	}
 
-	stackHost, err = dumpUnTaskStack(tskList, isHost)
-	if err != nil {
-		return fmt.Errorf("failed to dump host task backtrace: %w", err)
-	}
-
-	// We'll not record it if got no cgroup stack info.
-	if stackCgrp == "" {
-		return nil
-	}
-
-	// Check if this is caused by known issues.
-	knownIssue, inKnownList := conf.KnownIssueSearch(stackCgrp, containerHostNamespace, "")
-	if knownIssue != "" {
-		caseData.KnowIssue = knownIssue
-		caseData.InKnownList = inKnownList
-	} else {
-		caseData.KnowIssue = "none"
-		caseData.InKnownList = inKnownList
-	}
-
-	caseData.Stack = fmt.Sprintf("%s%s", stackCgrp, stackHost)
-	storage.Save("dload", containerID, time.Now(), caseData)
-
-	return nil
+	return "", nil
 }
 
 type dloadTracing struct{}
 
 // Start detect work, monitor the load of containers
 func (c *dloadTracing) Start(ctx context.Context) error {
-	cntInfo, logLoad, caseData, err := detect(ctx)
-	if err != nil {
-		return err
-	}
+	thresh := conf.Get().Tracing.Dload.ThresholdLoad
+	interval := conf.Get().Tracing.Dload.MonitorGap
 
-	select {
-	case <-ctx.Done():
-		log.Infof("caller requests stop !!!")
-	default:
-		err = dumpInfo(cntInfo, logLoad, caseData)
-		if err != nil {
-			return fmt.Errorf("failed to dump info: %w", err)
+	for {
+		select {
+		case <-ctx.Done():
+			return types.ErrExitByCancelCtx
+		default:
+			time.Sleep(5 * time.Second)
+
+			if err := updateContainersDload(); err != nil {
+				return err
+			}
+
+			container, loadstat, err := detectDloadContainer(thresh, interval)
+			if err != nil {
+				continue
+			}
+
+			_ = buildAndSaveDloadContainer(thresh, container, loadstat)
 		}
 	}
-
-	return err
 }
