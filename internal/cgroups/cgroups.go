@@ -54,6 +54,8 @@ type Cgroup interface {
 	UpdateRuntime(spec *specs.LinuxResources) error
 	// Add pids to cgroup.procs
 	AddProc(pid uint64) error
+	// Pids return pids of cgroups
+	Pids(path string) ([]int32, error)
 	// CpuUsage return cgroups user/system and total usage.
 	CpuUsage(path string) (*stats.CpuUsage, error)
 	// CpuStatRaw return cpu.stat raw data

@@ -20,6 +20,7 @@ import (
 	"strconv"
 
 	"huatuo-bamai/internal/cgroups/paths"
+	"huatuo-bamai/internal/cgroups/pids"
 	"huatuo-bamai/internal/cgroups/stats"
 	"huatuo-bamai/internal/utils/parseutil"
 
@@ -81,6 +82,10 @@ func (c *CgroupV2) UpdateRuntime(spec *specs.LinuxResources) error {
 
 func (c *CgroupV2) AddProc(pid uint64) error {
 	return c.cgroup.AddProc(pid)
+}
+
+func (c *CgroupV2) Pids(path string) ([]int32, error) {
+	return pids.Tasks(paths.Path(path), "cgroup.threads")
 }
 
 func (c *CgroupV2) CpuStatRaw(path string) (map[string]uint64, error) {

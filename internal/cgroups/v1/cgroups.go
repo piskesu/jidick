@@ -18,6 +18,7 @@ import (
 	"math"
 
 	"huatuo-bamai/internal/cgroups/paths"
+	"huatuo-bamai/internal/cgroups/pids"
 	"huatuo-bamai/internal/cgroups/stats"
 	"huatuo-bamai/internal/utils/parseutil"
 
@@ -90,6 +91,10 @@ func (c *CgroupV1) UpdateRuntime(spec *specs.LinuxResources) error {
 
 func (c *CgroupV1) AddProc(pid uint64) error {
 	return c.cgroup.AddProc(pid)
+}
+
+func (c *CgroupV1) Pids(path string) ([]int32, error) {
+	return pids.Tasks(paths.Path(subsysCpu, path), "tasks")
 }
 
 func (c *CgroupV1) CpuUsage(path string) (*stats.CpuUsage, error) {
