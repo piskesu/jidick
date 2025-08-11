@@ -15,7 +15,7 @@
 - **开源技术生态融合**：无缝对接主流开源可观测技术栈，如 Prometheus、Grafana、Pyroscope、Elasticsearch等。支持独立物理机和云原生部署，自动感知 K8S 容器资源/标签/注解，自动关联操作系统内核事件指标，消除数据孤岛。通过零侵扰、内核可编程方式兼容主流硬件平台和内核版本，确保其适应性、应用性。
 
 # 软件架构
-![](./docs/image/huatuo-arch.png)
+![](./docs/img/huatuo-arch.png)
 
 # 快速上手
 
@@ -32,7 +32,7 @@
 
 - **快速搭建**
   如果你想更进一步了解 HUATUO 运行机制，架构设计等，可在本地很方便地搭建 HUATUO 完整运行的所有组件，我们提供容器镜像以及简单配置，方便用户开发者快速了解 HUATUO。
-    ![](./docs/quick-start-cn.png)
+    ![](./docs/img/quickstart-components.png)
   
     <div style="text-align: center; margin: 8px 0 20px 0; color: #777;">
     <small>
@@ -40,13 +40,16 @@
     </small>
     </div>
   
-    为快速搭建运行环境，我们提供一键运行的方式，该命令会启动 [elasticsearch](https://www.elastic.co), [prometheus](https://prometheus.io), [grafana](https://grafana.com) 以及 huatuo-bamai 组件。命令执行成功后，打开浏览器访问 [http://localhost:3000](http://localhost:3000) 即可浏览监控大盘。
+   为快速搭建运行环境，我们提供一键运行的方式，该命令会启动 [elasticsearch](https://www.elastic.co), [prometheus](https://prometheus.io), [grafana](https://grafana.com) 以及 huatuo-bamai 组件。命令执行成功后，打开浏览器访问 [http://localhost:3000](http://localhost:3000) 即可浏览监控大盘。
   
     ```bash
     $ docker compose --project-directory ./build/docker up
     ```
 
+​	更详细的信息参考：[https://huatuo.tech/quickstart/](https://huatuo.tech/quickstart/)
+
 # 内核版本
+
 理论支持 4.18 之后的所有版本，主要测试内核、和操作系统发行版如下：
 
 |  HUATUO      |  内核版本 |  操作系统发行版     |

@@ -21,7 +21,7 @@ If you only care about the underlying principles and not about storage backends 
 
 - **Quick Setup​**
 If you want to dive deeper into HUATO's operation mechanisms and architecture, you can easily set up all components locally. We provide container images and simple configurations for developers to quickly understand HUATO.
-    ![](./docs/quick-start-en.png)
+    ![](./docs/img/quick-start-en.png)
     <div style="text-align: center; margin: 8px 0 20px 0; color: #777;">
     <small>
     HUATUO Component Workflow<br>
@@ -40,7 +40,7 @@ If you want to dive deeper into HUATO's operation mechanisms and architecture, y
 The built-in modules cover most monitoring needs. Additionally, HuaTuo supports custom data collection with easy integration. [How to Add Custom Collection](./docs/CUSTOM.md)
 
 # Architectures
-![](./docs/huatuo-arch.svg)
+![](./docs/img/huatuo-arch.png)
 
 # Observability Overview
 ## Exception Totals
