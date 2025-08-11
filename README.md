@@ -40,13 +40,13 @@
     </small>
     </div>
   
-   为快速搭建运行环境，我们提供一键运行的方式，该命令会启动 [elasticsearch](https://www.elastic.co), [prometheus](https://prometheus.io), [grafana](https://grafana.com) 以及 huatuo-bamai 组件。命令执行成功后，打开浏览器访问 [http://localhost:3000](http://localhost:3000) 即可浏览监控大盘。
+  为快速搭建运行环境，我们提供一键运行的方式，该命令会启动 [elasticsearch](https://www.elastic.co), [prometheus](https://prometheus.io), [grafana](https://grafana.com) 以及 huatuo-bamai 组件。命令执行成功后，打开浏览器访问 [http://localhost:3000](http://localhost:3000) 即可浏览监控大盘。
   
     ```bash
     $ docker compose --project-directory ./build/docker up
     ```
-
-​	更详细的信息参考：[https://huatuo.tech/quickstart/](https://huatuo.tech/quickstart/)
+  
+  更详细的信息参考：[快速开始](./docs/quick-start.md) 或 [https://huatuo.tech/quickstart/](https://huatuo.tech/quickstart/)
 
 # 内核版本
 
