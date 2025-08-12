@@ -21,12 +21,11 @@ import (
 	"math"
 	"os/exec"
 	"path"
-	"runtime"
 	"strconv"
-	"strings"
 	"time"
 
 	"huatuo-bamai/internal/cgroups"
+	"huatuo-bamai/internal/cgroups/stats"
 	"huatuo-bamai/internal/conf"
 	"huatuo-bamai/internal/flamegraph"
 	"huatuo-bamai/internal/log"
@@ -56,257 +55,269 @@ func newCPUIdle() (*tracing.EventTracingAttr, error) {
 	}, nil
 }
 
-func getCPUCoresInCgroup(cgroupPath string) (uint64, error) {
-	cpuCFSInfo, err := cgrp.CpuQuotaAndPeriod(cgroupPath)
-	if err != nil {
-		return 0, fmt.Errorf("get cgroup [%s] quota and period failed: %w", cgroupPath, err)
-	}
+type cpuIdleTracing struct{}
 
-	if cpuCFSInfo.Quota == math.MaxUint64 {
-		return uint64(runtime.NumCPU()), nil
-	}
-
-	return (cpuCFSInfo.Quota / cpuCFSInfo.Period), nil
-}
-
-func readCPUUsage(path string) (map[string]uint64, error) {
-	usage, err := cgrp.CpuUsage(path)
-	if err != nil {
-		return nil, err
-	}
-
-	return map[string]uint64{
-		"user":   usage.User,
-		"system": usage.System,
-		"total":  uint64(time.Now().UnixNano()),
-	}, nil
-}
-
-// UserHZtons because kernel USER_HZ = 100, the default value set to 10,000,000
-const (
-	UserHZtons = 10000000
-	USERHZ     = 100
-)
-
-func calculateCPUUsage(info *containerCPUInfo, currUsage map[string]uint64) error {
-	deltaTotal := currUsage["total"] - info.prevUsage["total"]
-	deltaUser := currUsage["user"] - info.prevUsage["user"]
-	deltaSys := currUsage["system"] - info.prevUsage["system"]
-
-	cpuCores, err := getCPUCoresInCgroup(info.path)
-	if err != nil {
-		return fmt.Errorf("get cgroup cpu err")
-	}
-
-	if cpuCores == 0 || deltaTotal == 0 {
-		return fmt.Errorf("division by zero error")
-	}
-
-	log.Debugf("cpuidle calculate core %v currUsage %v prevUsage %v", cpuCores, currUsage, info.prevUsage)
-	info.nowUsageP["cpuUser"] = deltaUser * UserHZtons * USERHZ / deltaTotal / cpuCores
-	info.nowUsageP["cpuSys"] = deltaSys * UserHZtons * USERHZ / deltaTotal / cpuCores
-	return nil
+type cpuStats struct {
+	user  int64
+	sys   int64
+	total int64
 }
 
 type containerCPUInfo struct {
-	prevUsage  map[string]uint64
-	prevUsageP map[string]uint64
-	nowUsageP  map[string]uint64
-	deltaUser  int64
-	deltaSys   int64
-	timestamp  int64
-	path       string
-	alive      bool
+	prevUsagePercentage  cpuStats
+	nowUsagePercentage   cpuStats
+	deltaUsagePercentage cpuStats
+	prevUsage            cpuStats
+	path                 string
+	alive                bool
+	id                   string
+	traceTime            time.Time
+	updateTime           time.Time
 }
 
-// cpuIdleIDMap is the container information
-type cpuIdleIDMap map[string]*containerCPUInfo
+type cpuIdleThreshold struct {
+	deltaUser              int64
+	deltaSys               int64
+	deltaTotal             int64
+	usageUser              int64
+	usageSys               int64
+	usageTotal             int64
+	intervalContinuousPerf int64
+}
 
-func updateCPUIdleIDMap(m cpuIdleIDMap) error {
+// containersCPUIdleMap is the container information
+type containersCPUIdleMap map[string]*containerCPUInfo
+
+var containersCPUIdle = make(containersCPUIdleMap)
+
+func updateContainersCPUIdle() error {
 	containers, err := pod.GetNormalContainers()
-	if err != nil {
-		return fmt.Errorf("GetNormalContainers: %w", err)
-	}
-
-	for _, container := range containers {
-		_, ok := m[container.ID]
-		if ok {
-			m[container.ID].path = container.CgroupSuffix
-			m[container.ID].alive = true
-		} else {
-			temp := &containerCPUInfo{
-				prevUsage: map[string]uint64{
-					"user":   0,
-					"system": 0,
-					"total":  0,
-				},
-				prevUsageP: map[string]uint64{
-					"cpuUser": 0,
-					"cpuSys":  0,
-				},
-				nowUsageP: map[string]uint64{
-					"cpuUser": 0,
-					"cpuSys":  0,
-				},
-				deltaUser: 0,
-				deltaSys:  0,
-				timestamp: 0,
-				path:      container.CgroupSuffix,
-				alive:     true,
-			}
-			m[container.ID] = temp
-		}
-	}
-	return nil
-}
-
-var cpuIdleIdMap = make(cpuIdleIDMap)
-
-func cpuIdleDetect(ctx context.Context) (string, error) {
-	// get config info
-	userth := conf.Get().Tracing.Cpuidle.CgUserth
-	deltauserth := conf.Get().Tracing.Cpuidle.CgDeltaUserth
-	systh := conf.Get().Tracing.Cpuidle.CgSysth
-	deltasysth := conf.Get().Tracing.Cpuidle.CgDeltaSysth
-	usageth := conf.Get().Tracing.Cpuidle.CgUsageth
-	deltausageth := conf.Get().Tracing.Cpuidle.CgDeltaUsageth
-	step := conf.Get().Tracing.Cpuidle.CgStep
-	graceth := conf.Get().Tracing.Cpuidle.CgGrace
-
-	for {
-		select {
-		case <-ctx.Done():
-			return "", types.ErrExitByCancelCtx
-		case <-time.After(time.Duration(step) * time.Second):
-			if err := updateCPUIdleIDMap(cpuIdleIdMap); err != nil {
-				return "", err
-			}
-			for containerID, v := range cpuIdleIdMap {
-				if !v.alive {
-					delete(cpuIdleIdMap, containerID)
-				} else {
-					v.alive = false
-					currUsage, err := readCPUUsage(v.path)
-					if err != nil {
-						log.Debugf("cpuidle failed to read %s CPU usage: %s", v.path, err)
-						continue
-					}
-
-					if v.prevUsage["user"] == 0 && v.prevUsage["system"] == 0 && v.prevUsage["total"] == 0 {
-						v.prevUsage = currUsage
-						continue
-					}
-
-					err = calculateCPUUsage(v, currUsage)
-					if err != nil {
-						log.Debugf("cpuidle calculate err %s", err)
-						continue
-					}
-
-					v.deltaUser = int64(v.nowUsageP["cpuUser"] - v.prevUsageP["cpuUser"])
-					v.deltaSys = int64(v.nowUsageP["cpuSys"] - v.prevUsageP["cpuSys"])
-					v.prevUsageP["cpuUser"] = v.nowUsageP["cpuUser"]
-					v.prevUsageP["cpuSys"] = v.nowUsageP["cpuSys"]
-					v.prevUsage = currUsage
-					nowtime := time.Now().Unix()
-					gracetime := nowtime - v.timestamp
-					nowUsage := v.nowUsageP["cpuUser"] + v.nowUsageP["cpuSys"]
-					nowDeltaUsage := v.deltaUser + v.deltaSys
-
-					log.Debugf("cpuidle ctID %v user %v deltauser %v sys %v deltasys %v usage %v deltausage %v grace %v graceth %v",
-						containerID, v.nowUsageP["cpuUser"], v.deltaUser, v.nowUsageP["cpuSys"], v.deltaSys, nowUsage, nowDeltaUsage, gracetime, graceth)
-
-					if gracetime > graceth {
-						if (v.nowUsageP["cpuUser"] > userth && v.deltaUser > deltauserth) ||
-							(v.nowUsageP["cpuSys"] > systh && v.deltaSys > deltasysth) ||
-							(nowUsage > usageth && nowDeltaUsage > deltausageth) {
-							v.timestamp = nowtime
-							for key := range v.prevUsage {
-								v.prevUsage[key] = 0
-							}
-							return containerID, nil
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
-type cpuIdleTracing struct{}
-
-// Cpuidle is an instance of cpuIdleTracer
-var (
-	tracerTime time.Time
-)
-
-type CPUIdleTracingData struct {
-	NowUser        uint64                 `json:"nowuser"`
-	UserThreshold  uint64                 `json:"userthreshold"`
-	DeltaUser      int64                  `json:"deltauser"`
-	DeltaUserTH    int64                  `json:"deltauserth"`
-	NowSys         uint64                 `json:"nowsys"`
-	SysThreshold   uint64                 `json:"systhreshold"`
-	DeltaSys       int64                  `json:"deltasys"`
-	DeltaSysTH     int64                  `json:"deltasysth"`
-	NowUsage       uint64                 `json:"nowusage"`
-	UsageThreshold uint64                 `json:"usagethreshold"`
-	DeltaUsage     int64                  `json:"deltausage"`
-	DeltaUsageTH   int64                  `json:"deltausageth"`
-	FlameData      []flamegraph.FrameData `json:"flamedata"`
-}
-
-// Start detect work, load bpf and wait data form perfevent
-func (c *cpuIdleTracing) Start(ctx context.Context) error {
-	// TODO: Verify the conditions for startup.
-	containerID, err := cpuIdleDetect(ctx)
 	if err != nil {
 		return err
 	}
 
-	tracerTime = time.Now()
-	dur := conf.Get().Tracing.Cpuidle.CgUsageToolduration
-	durstr := strconv.FormatInt(dur, 10)
+	for _, container := range containers {
+		if _, ok := containersCPUIdle[container.ID]; ok {
+			containersCPUIdle[container.ID].path = container.CgroupSuffix
+			containersCPUIdle[container.ID].alive = true
+			containersCPUIdle[container.ID].id = container.ID
+			continue
+		}
 
-	// exec tracerperf
-	cmdctx, cancel := context.WithTimeout(ctx, time.Duration(dur+30)*time.Second)
+		containersCPUIdle[container.ID] = &containerCPUInfo{
+			path:  container.CgroupSuffix,
+			alive: true,
+			id:    container.ID,
+		}
+	}
+
+	return nil
+}
+
+func detectCPUIdleContainer(threshold *cpuIdleThreshold) (*containerCPUInfo, error) {
+	for id, container := range containersCPUIdle {
+		if !container.alive {
+			delete(containersCPUIdle, id)
+		} else {
+			container.alive = false
+
+			if err := updateContainerCpuUsage(container); err != nil {
+				log.Debugf("cpuidle update container [%s]: %v", container.path, err)
+				continue
+			}
+
+			log.Debugf("container [%s], usage: %v", container.path, container.nowUsagePercentage)
+
+			if shouldCareThisEvent(container, threshold) {
+				return container, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("no cpuidle containers")
+}
+
+func containerCpuUsage(usage *stats.CpuUsage) cpuStats {
+	return cpuStats{
+		user:  int64(usage.User),
+		sys:   int64(usage.System),
+		total: int64(usage.Usage),
+	}
+}
+
+func containerCpuUsageDelta(cpu1, cpu2 *cpuStats) cpuStats {
+	return cpuStats{
+		user:  cpu1.user - cpu2.user,
+		sys:   cpu1.sys - cpu2.sys,
+		total: cpu1.total - cpu2.total,
+	}
+}
+
+func updateContainerCpuUsage(container *containerCPUInfo) error {
+	cpuQuotaPeriod, err := cgrp.CpuQuotaAndPeriod(container.path)
+	if err != nil {
+		return err
+	}
+
+	if cpuQuotaPeriod.Quota == math.MaxUint64 {
+		return fmt.Errorf("cpu too large")
+	}
+
+	cpuCores := int64(cpuQuotaPeriod.Quota / cpuQuotaPeriod.Period)
+	if cpuCores == 0 {
+		return fmt.Errorf("cpu too small")
+	}
+
+	usage, err := cgrp.CpuUsage(container.path)
+	if err != nil {
+		return err
+	}
+
+	if container.prevUsage == (cpuStats{}) {
+		container.prevUsage = containerCpuUsage(usage)
+		container.updateTime = time.Now()
+		return fmt.Errorf("cpu usage first update")
+	}
+
+	delta := containerCpuUsageDelta(
+		&cpuStats{
+			user:  int64(usage.User),
+			sys:   int64(usage.System),
+			total: int64(usage.Usage),
+		}, &container.prevUsage)
+	if delta.total == 0 {
+		container.updateTime = time.Now()
+		return fmt.Errorf("cpu usage no changed")
+	}
+
+	updateElasped := time.Since(container.updateTime).Microseconds()
+
+	container.nowUsagePercentage.user = 100 * delta.user / updateElasped / cpuCores
+	container.nowUsagePercentage.sys = 100 * delta.sys / updateElasped / cpuCores
+	container.nowUsagePercentage.total = 100 * delta.total / updateElasped / cpuCores
+
+	if container.prevUsagePercentage == (cpuStats{}) {
+		container.prevUsagePercentage = container.nowUsagePercentage
+	}
+
+	container.deltaUsagePercentage = containerCpuUsageDelta(
+		&container.nowUsagePercentage,
+		&container.prevUsagePercentage)
+	container.prevUsagePercentage = container.nowUsagePercentage
+	container.prevUsage = containerCpuUsage(usage)
+	container.updateTime = time.Now()
+	return nil
+}
+
+func shouldCareThisEvent(container *containerCPUInfo, threshold *cpuIdleThreshold) bool {
+	nowtime := time.Now()
+	intervalContinuousPerf := nowtime.Sub(container.traceTime)
+
+	if int64(intervalContinuousPerf.Seconds()) > threshold.intervalContinuousPerf {
+		if (container.nowUsagePercentage.user > threshold.usageUser &&
+			container.deltaUsagePercentage.user > threshold.deltaUser) ||
+			(container.nowUsagePercentage.sys > threshold.usageSys &&
+				container.deltaUsagePercentage.sys > threshold.deltaSys) ||
+			(container.nowUsagePercentage.total > threshold.usageTotal &&
+				container.deltaUsagePercentage.total > threshold.deltaTotal) {
+			container.traceTime = nowtime
+			container.prevUsage = cpuStats{}
+			return true
+		}
+	}
+
+	return false
+}
+
+func runPerf(parent context.Context, containerId string, timeOut int64) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(parent, time.Duration(timeOut+30)*time.Second)
 	defer cancel()
 
-	log.Infof("cpuidle exec tracerperf ctid %v dur %v", containerID, durstr)
-	cmd := exec.CommandContext(cmdctx, path.Join(tracing.TaskBinDir, "perf.bin"), "--casename", "cpuidle.o", "--container-id", containerID, "--dur", durstr)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Debugf("cpuidle cmd output %v", strings.TrimSuffix(string(output), "\n"))
-		return fmt.Errorf("cpuidle tracerperf exec err: %w", err)
+	cmd := exec.CommandContext(ctx, path.Join(tracing.TaskBinDir, "perf.bin"),
+		"--casename", "cpuidle.o",
+		"--container-id", containerId,
+		"--dur", strconv.FormatInt(timeOut, 10))
+
+	return cmd.CombinedOutput()
+}
+
+func buildAndSaveCPUIdleContainer(container *containerCPUInfo, threshold *cpuIdleThreshold, flamedata []byte) error {
+	tracerData := CPUIdleTracingData{
+		NowUser:             container.nowUsagePercentage.user,
+		DeltaUser:           container.deltaUsagePercentage.user,
+		UserThreshold:       threshold.usageUser,
+		DeltaUserThreshold:  threshold.deltaUser,
+		NowSys:              container.nowUsagePercentage.sys,
+		DeltaSys:            container.deltaUsagePercentage.sys,
+		SysThreshold:        threshold.usageSys,
+		DeltaSysThreshold:   threshold.deltaSys,
+		NowUsage:            container.nowUsagePercentage.total,
+		DeltaUsage:          container.deltaUsagePercentage.total,
+		UsageThreshold:      threshold.usageTotal,
+		DeltaUsageThreshold: threshold.deltaTotal,
 	}
 
-	if len(output) == 0 {
-		log.Infof("cpuidle: output of perf is null")
-		return nil
+	if err := json.Unmarshal(flamedata, &tracerData.FlameData); err != nil {
+		return err
 	}
 
-	// parse json
-	tracerData := CPUIdleTracingData{}
-	err = json.Unmarshal(output, &tracerData.FlameData)
-	if err != nil {
-		log.Debugf("cpuidle: parse failed output: %v", strings.TrimSuffix(string(output), "\n"))
-		return fmt.Errorf("parse JSON err: %w", err)
+	log.Debugf("cpuidle flamedata %v", tracerData.FlameData)
+	storage.Save("cpuidle", container.id, container.traceTime, &tracerData)
+	return nil
+}
+
+type CPUIdleTracingData struct {
+	NowUser             int64                  `json:"user"`
+	UserThreshold       int64                  `json:"user_threshold"`
+	DeltaUser           int64                  `json:"deltauser"`
+	DeltaUserThreshold  int64                  `json:"deltauser_threshold"`
+	NowSys              int64                  `json:"sys"`
+	SysThreshold        int64                  `json:"sys_threshold"`
+	DeltaSys            int64                  `json:"deltasys"`
+	DeltaSysThreshold   int64                  `json:"deltasys_threshold"`
+	NowUsage            int64                  `json:"usage"`
+	UsageThreshold      int64                  `json:"usage_threshold"`
+	DeltaUsage          int64                  `json:"deltausage"`
+	DeltaUsageThreshold int64                  `json:"deltausage_threshold"`
+	FlameData           []flamegraph.FrameData `json:"flamedata"`
+}
+
+func (c *cpuIdleTracing) Start(ctx context.Context) error {
+	interval := conf.Get().Tracing.CPUIdle.Interval
+	perfRunTimeOut := conf.Get().Tracing.CPUIdle.PerfRunTimeOut
+
+	threshold := &cpuIdleThreshold{
+		deltaUser:              conf.Get().Tracing.CPUIdle.DeltaUserThreshold,
+		deltaSys:               conf.Get().Tracing.CPUIdle.DeltaSysThreshold,
+		deltaTotal:             conf.Get().Tracing.CPUIdle.DeltaUsageThreshold,
+		usageUser:              conf.Get().Tracing.CPUIdle.UserThreshold,
+		usageSys:               conf.Get().Tracing.CPUIdle.SysThreshold,
+		usageTotal:             conf.Get().Tracing.CPUIdle.UsageThreshold,
+		intervalContinuousPerf: conf.Get().Tracing.CPUIdle.IntervalContinuousPerf,
 	}
 
-	// save
-	log.Debugf("cpuidle FlameData %v", tracerData.FlameData)
-	tracerData.NowUser = cpuIdleIdMap[containerID].nowUsageP["cpuUser"]
-	tracerData.UserThreshold = conf.Get().Tracing.Cpuidle.CgUserth
-	tracerData.DeltaUser = cpuIdleIdMap[containerID].deltaUser
-	tracerData.DeltaUserTH = conf.Get().Tracing.Cpuidle.CgDeltaUserth
-	tracerData.NowSys = cpuIdleIdMap[containerID].nowUsageP["cpuSys"]
-	tracerData.SysThreshold = conf.Get().Tracing.Cpuidle.CgSysth
-	tracerData.DeltaSys = cpuIdleIdMap[containerID].deltaSys
-	tracerData.DeltaSysTH = conf.Get().Tracing.Cpuidle.CgDeltaSysth
-	tracerData.NowUsage = cpuIdleIdMap[containerID].nowUsageP["cpuSys"] + cpuIdleIdMap[containerID].nowUsageP["cpuUser"]
-	tracerData.UsageThreshold = conf.Get().Tracing.Cpuidle.CgUsageth
-	tracerData.DeltaUsage = cpuIdleIdMap[containerID].deltaUser + cpuIdleIdMap[containerID].deltaSys
-	tracerData.DeltaUsageTH = conf.Get().Tracing.Cpuidle.CgDeltaUsageth
-	storage.Save("cpuidle", containerID, tracerTime, &tracerData)
-	return err
+	for {
+		select {
+		case <-ctx.Done():
+			return types.ErrExitByCancelCtx
+		case <-time.After(time.Duration(interval) * time.Second):
+			if err := updateContainersCPUIdle(); err != nil {
+				return err
+			}
+
+			container, err := detectCPUIdleContainer(threshold)
+			if err != nil {
+				continue
+			}
+
+			log.Debugf("start perf container [%s], id [%s] with usage: %v",
+				container.path, container.id, container.nowUsagePercentage)
+			flamedata, err := runPerf(ctx, container.id, perfRunTimeOut)
+			if err != nil {
+				return err
+			}
+
+			_ = buildAndSaveCPUIdleContainer(container, threshold, flamedata)
+		}
+	}
 }
