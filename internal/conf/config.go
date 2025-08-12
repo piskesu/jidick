@@ -82,17 +82,17 @@ type CommonConf struct {
 	}
 
 	Tracing struct {
-		// Cpuidle for cpuidle configuration
-		Cpuidle struct {
-			CgUserth            uint64
-			CgDeltaUserth       int64
-			CgSysth             uint64
-			CgDeltaSysth        int64
-			CgUsageth           uint64
-			CgDeltaUsageth      int64
-			CgStep              int64
-			CgGrace             int64
-			CgUsageToolduration int64
+		// CPUIdle for cpuidle configuration
+		CPUIdle struct {
+			UserThreshold          int64
+			SysThreshold           int64
+			UsageThreshold         int64
+			DeltaUserThreshold     int64
+			DeltaSysThreshold      int64
+			DeltaUsageThreshold    int64
+			Interval               int64
+			IntervalContinuousPerf int64
+			PerfRunTimeOut         int64
 		}
 
 		// Cpusys for cpusys configuration
