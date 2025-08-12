@@ -14,7 +14,7 @@
 
 package stats
 
-// usec, microsecond
+// All members are measured in microseconds
 type CpuUsage struct {
 	Usage  uint64
 	User   uint64
