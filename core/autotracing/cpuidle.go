@@ -39,14 +39,10 @@ func init() {
 	tracing.RegisterEventTracing("cpuidle", newCPUIdle)
 }
 
-var cgrp cgroups.Cgroup
+var cgroupMgr cgroups.Cgroup
 
 func newCPUIdle() (*tracing.EventTracingAttr, error) {
-	var err error
-	cgrp, err = cgroups.NewCgroupManager()
-	if err != nil {
-		return nil, err
-	}
+	cgroupMgr, _ = cgroups.NewCgroupManager()
 
 	return &tracing.EventTracingAttr{
 		TracingData: &cpuIdleTracing{},
@@ -154,7 +150,7 @@ func containerCpuUsageDelta(cpu1, cpu2 *cpuStats) cpuStats {
 }
 
 func updateContainerCpuUsage(container *containerCPUInfo) error {
-	cpuQuotaPeriod, err := cgrp.CpuQuotaAndPeriod(container.path)
+	cpuQuotaPeriod, err := cgroupMgr.CpuQuotaAndPeriod(container.path)
 	if err != nil {
 		return err
 	}
@@ -168,7 +164,7 @@ func updateContainerCpuUsage(container *containerCPUInfo) error {
 		return fmt.Errorf("cpu too small")
 	}
 
-	usage, err := cgrp.CpuUsage(container.path)
+	usage, err := cgroupMgr.CpuUsage(container.path)
 	if err != nil {
 		return err
 	}
