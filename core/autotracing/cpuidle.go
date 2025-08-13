@@ -306,11 +306,19 @@ func (c *cpuIdleTracing) Start(ctx context.Context) error {
 				continue
 			}
 
-			log.Debugf("start perf container [%s], id [%s] with usage: %v",
-				container.path, container.id, container.nowUsagePercentage)
+			log.Infof("start perf container [%s], id [%s] with usage: %v, perf_run_timeout: %d",
+				container.path, container.id,
+				container.nowUsagePercentage,
+				perfRunTimeOut)
 			flamedata, err := runPerf(ctx, container.id, perfRunTimeOut)
 			if err != nil {
+				log.Debugf("perf err: %v, output: %v", err, string(flamedata))
 				return err
+			}
+
+			if len(flamedata) == 0 {
+				log.Infof("perf output is null for container id [%s]", container.id)
+				continue
 			}
 
 			_ = buildAndSaveCPUIdleContainer(container, threshold, flamedata)
