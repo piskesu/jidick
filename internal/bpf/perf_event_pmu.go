@@ -15,6 +15,8 @@
 // A simple link type implemented by referring to the Cilium community.
 // link/perf_event.go
 
+//go:build !didi
+
 package bpf
 
 import (
