@@ -17,9 +17,6 @@ GO_BUILD_STATIC_WITH_VERSION := $(GO_BUILD_STATIC) \
 	-X main.AppGitCommit=$(APP_COMMIT) \
 	-X main.AppBuildTime=$(APP_BUILD_TIME)"
 
-# export
-export GO_BUILD_STATIC
-
 all: gen-deps gen build
 
 gen-deps:
@@ -44,19 +41,15 @@ CMD_FORCE:;
 check: imports fmt golangci-lint
 
 imports:
-	@echo "imports"
-	@goimports -w -local huatuo-bamai  $(shell find . -type f -name '*.go' -not -path "./vendor/*")
+	goimports -w -local huatuo-bamai  $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 
 fmt: fmt-rewrite-rules
-	@echo "gofumpt"
 	gofumpt -l -w $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 
 fmt-rewrite-rules:
-	@echo "fmt-rewrite-rules"
 	gofmt -w -r 'interface{} -> any' $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 
 golangci-lint:
-	@echo "golangci-lint"
 	golangci-lint run --build-tags=$(GO_TAGS) -v ./... --timeout=5m --config .golangci.yaml
 
 vendor:
