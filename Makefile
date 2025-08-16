@@ -1,12 +1,8 @@
 GO ?= go
 
-# the root directory
 ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 
-# bpf source code files
 BPF_DIR := $(ROOT_DIR)/bpf
-
-# used for go generate to compile eBPF
 BPF_COMPILE := $(ROOT_DIR)/build/clang.sh
 BPF_INCLUDE := "-I$(BPF_DIR)/include"
 
@@ -24,30 +20,26 @@ GO_BUILD_STATIC_WITH_VERSION := $(GO_BUILD_STATIC) \
 # export
 export GO_BUILD_STATIC
 
-all: gen-deps gen build tracer
+all: gen-deps gen build
 
 gen-deps:
 	# maybe need to install libbpf-devel
 
 gen:
-	@BPF_DIR=$(BPF_DIR) \
-	BPF_COMPILE=$(BPF_COMPILE) \
-	BPF_INCLUDE=$(BPF_INCLUDE) \
+	@BPF_DIR=$(BPF_DIR) BPF_COMPILE=$(BPF_COMPILE) BPF_INCLUDE=$(BPF_INCLUDE) \
 	$(GO) generate -x ./...
 
-build:
-	$(GO_BUILD_STATIC_WITH_VERSION) -o _output/bin/huatuo-bamai ./cmd/huatuo-bamai
+APP_CMD_DIR := cmd
+APP_CMD_OUTPUT := _output/bin
 
-TRACER_DIR := cmd
-BIN_DIR := bin
+CMD_SUBDIRS := $(shell find $(APP_CMD_DIR) -mindepth 1 -maxdepth 1 -type d)
+APP_CMD_BIN_TARGETS := $(patsubst %,$(APP_CMD_OUTPUT)/%,$(notdir $(CMD_SUBDIRS)))
 
-SUBDIRS := $(shell find $(TRACER_DIR) -mindepth 1 -maxdepth 1 -type d -not -path "$(BIN_DIR)" | grep -v 'depend\|huatuo-bamai')
-TARGETS := $(patsubst %,$(BIN_DIR)/%,$(notdir $(SUBDIRS)))
-COMBINED := $(foreach dir,$(SUBDIRS),$(dir)/$(BIN_DIR)/*.bin)
+build: $(APP_CMD_BIN_TARGETS)
+$(APP_CMD_OUTPUT)/%: $(APP_CMD_DIR)/% CMD_FORCE
+	$(GO_BUILD_STATIC_WITH_VERSION) -o $@ ./$<
 
-tracer: $(TARGETS)
-$(BIN_DIR)/%: $(TRACER_DIR)/%
-	cd $< && make
+CMD_FORCE:;
 
 check: imports fmt golangci-lint
 
@@ -73,6 +65,6 @@ vendor:
 	$(GO) mod vendor
 
 clean:
-	rm -rf _output $(shell find . -type f -name "*.o") $(COMBINED)
+	rm -rf _output $(shell find . -type f -name "*.o")
 
-.PHONY: all gen-deps gen build tracer check imports golint fmt golangci-lint vendor clean
+.PHONY: all gen-deps gen build check imports golint fmt golangci-lint vendor clean CMD_FORCE
