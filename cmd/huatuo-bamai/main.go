@@ -86,8 +86,7 @@ func mainAction(ctx *cli.Context) error {
 		return fmt.Errorf("storage.InitDefaultClients: %w", err)
 	}
 
-	// init the bpf manager.
-	if err := bpf.InitBpfManager(); err != nil {
+	if err := bpf.InitBpfManager(&bpf.Option{}); err != nil {
 		return fmt.Errorf("failed to init bpf manager: %w", err)
 	}
 

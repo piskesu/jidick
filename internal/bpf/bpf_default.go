@@ -40,8 +40,7 @@ const (
 )
 
 // InitBpfManager initializes the bpf manager.
-func InitBpfManager() error {
-	// unlimit
+func InitBpfManager(opt *Option) error {
 	return unix.Setrlimit(unix.RLIMIT_MEMLOCK, &unix.Rlimit{
 		Cur: unix.RLIM_INFINITY,
 		Max: unix.RLIM_INFINITY,
