@@ -230,9 +230,9 @@ func runPerf(parent context.Context, containerId string, timeOut int64) ([]byte,
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, path.Join(tracing.TaskBinDir, "perf"),
-		"--casename", "cpuidle.o",
+		"--bpf-obj", "cpuidle.o",
 		"--container-id", containerId,
-		"--dur", strconv.FormatInt(timeOut, 10))
+		"--duration", strconv.FormatInt(timeOut, 10))
 
 	return cmd.CombinedOutput()
 }
