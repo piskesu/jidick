@@ -66,6 +66,9 @@ type Cgroup interface {
 	MemoryStatRaw(path string) (map[string]uint64, error)
 	// MemoryEventRaw memory.stat
 	MemoryEventRaw(path string) (map[string]uint64, error)
+	// memory.usage_in_bytes,memory.limit_in_bytes in cgroup1
+	// memory.current,memory.max in cgroup2
+	MemoryUsage(path string) (*stats.MemoryUsage, error)
 }
 
 func NewCgroupManager() (Cgroup, error) {
