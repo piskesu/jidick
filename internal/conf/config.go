@@ -95,12 +95,12 @@ type CommonConf struct {
 			PerfRunTimeOut         int64
 		}
 
-		// Cpusys for cpusys configuration
-		Cpusys struct {
-			CPUSysth           uint64
-			CPUSysDelta        int64
-			CPUSysStep         int64
-			CPUSysToolduration int64
+		// CPUSys for cpusys configuration
+		CPUSys struct {
+			SysThreshold      int64
+			DeltaSysThreshold int64
+			Interval          int64
+			PerfRunTimeOut    int64
 		}
 
 		// Waitrate for waitrate.go
