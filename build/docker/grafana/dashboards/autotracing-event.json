@@ -2717,7 +2717,7 @@
                   {
                     "targetBlank": true,
                     "title": "auto跳转火焰图",
-                    "url": "http://localhost:3000/d/autotracing-flamegraph-redirect/autotracing-flamegraph-redirect?orgId=1&var-id=${__data.fields.点击跳转火焰图}"
+                    "url": "/d/autotracing-flamegraph-redirect/autotracing-flamegraph-redirect?orgId=1&var-id=${__data.fields.点击跳转火焰图}"
                   }
                 ]
               },
@@ -3266,7 +3266,7 @@
                       {
                         "targetBlank": true,
                         "title": "auto 跳转火焰图",
-                        "url": "http://localhost:3000/d/autotracing-flamegraph-redirect/autotracing-flamegraph-redirect?orgId=1&var-id=${__data.fields.点击跳转火焰图}"
+                        "url": "/d/autotracing-flamegraph-redirect/autotracing-flamegraph-redirect?orgId=1&var-id=${__data.fields.点击跳转火焰图}"
                       }
                     ]
                   },
