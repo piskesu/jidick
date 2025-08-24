@@ -10,7 +10,7 @@ APP_COMMIT ?= $(shell git describe --dirty --long --always)
 APP_BUILD_TIME=$(shell date "+%Y%m%d%H%M%S")
 APP_VERSION="1.0"
 
-GO_BUILD_STATIC := CGO_ENABLED=1 $(GO) build -tags "netgo osusergo $(GO_TAGS)" -gcflags=all="-N -l" \
+GO_BUILD_STATIC := CGO_ENABLED=1 $(GO) build -tags "netgo osusergo" -gcflags=all="-N -l" \
 	-ldflags "-extldflags -static
 GO_BUILD_STATIC_WITH_VERSION := $(GO_BUILD_STATIC) \
 	-X main.AppVersion=$(APP_VERSION) \
@@ -54,7 +54,7 @@ fmt-rewrite-rules:
 	gofmt -w -r 'interface{} -> any' $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 
 golangci-lint:
-	golangci-lint run --build-tags=$(GO_TAGS) -v ./... --timeout=5m --config .golangci.yaml
+	golangci-lint run -v ./... --timeout=5m --config .golangci.yaml
 
 vendor:
 	$(GO) mod tidy
