@@ -25,8 +25,8 @@ import (
 	"huatuo-bamai/internal/conf"
 	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/storage"
+	"huatuo-bamai/internal/symbol"
 	"huatuo-bamai/internal/utils/netutil"
-	"huatuo-bamai/internal/utils/symbolutil"
 	"huatuo-bamai/pkg/tracing"
 )
 
@@ -66,21 +66,21 @@ var typeMap = map[uint8]string{
 }
 
 type perfEventT struct {
-	TgidPid         uint64                                  `json:"tgid_pid"`
-	Saddr           uint32                                  `json:"saddr"`
-	Daddr           uint32                                  `json:"daddr"`
-	Sport           uint16                                  `json:"sport"`
-	Dport           uint16                                  `json:"dport"`
-	Seq             uint32                                  `json:"seq"`
-	AckSeq          uint32                                  `json:"ack_seq"`
-	QueueMapping    uint32                                  `json:"queue_mapping"`
-	PktLen          uint64                                  `json:"pkt_len"`
-	StackSize       int64                                   `json:"stack_size"`
-	Stack           [symbolutil.KsymbolStackMaxDepth]uint64 `json:"stack"`
-	SkMaxAckBacklog uint32                                  `json:"sk_max_ack_backlog"`
-	State           uint8                                   `json:"state"`
-	Type            uint8                                   `json:"type"`
-	Comm            [bpf.TaskCommLen]byte                   `json:"comm"`
+	TgidPid         uint64                              `json:"tgid_pid"`
+	Saddr           uint32                              `json:"saddr"`
+	Daddr           uint32                              `json:"daddr"`
+	Sport           uint16                              `json:"sport"`
+	Dport           uint16                              `json:"dport"`
+	Seq             uint32                              `json:"seq"`
+	AckSeq          uint32                              `json:"ack_seq"`
+	QueueMapping    uint32                              `json:"queue_mapping"`
+	PktLen          uint64                              `json:"pkt_len"`
+	StackSize       int64                               `json:"stack_size"`
+	Stack           [symbol.KsymbolStackMaxDepth]uint64 `json:"stack"`
+	SkMaxAckBacklog uint32                              `json:"sk_max_ack_backlog"`
+	State           uint8                               `json:"state"`
+	Type            uint8                               `json:"type"`
+	Comm            [bpf.TaskCommLen]byte               `json:"comm"`
 }
 
 type DropWatchTracingData struct {
@@ -179,7 +179,7 @@ func (c *dropWatchTracing) formatEvent(event *perfEventT) *DropWatchTracingData 
 	}
 
 	// stack
-	stacks := strings.Join(symbolutil.DumpKernelBackTrace(event.Stack[:], symbolutil.KsymbolStackMaxDepth).BackTrace, "\n")
+	stacks := strings.Join(symbol.DumpKernelBackTrace(event.Stack[:], symbol.KsymbolStackMaxDepth).BackTrace, "\n")
 
 	// tracer data
 	data := &DropWatchTracingData{

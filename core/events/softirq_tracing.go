@@ -23,7 +23,7 @@ import (
 	"huatuo-bamai/internal/bpf"
 	"huatuo-bamai/internal/conf"
 	"huatuo-bamai/internal/storage"
-	"huatuo-bamai/internal/utils/symbolutil"
+	"huatuo-bamai/internal/symbol"
 	"huatuo-bamai/pkg/tracing"
 )
 
@@ -32,7 +32,7 @@ import (
 type softirqTracing struct{}
 
 type softirqPerfEvent struct {
-	Stack     [symbolutil.KsymbolStackMaxDepth]uint64
+	Stack     [symbol.KsymbolStackMaxDepth]uint64
 	StackSize int64
 	Now       uint64
 	StallTime uint64
@@ -129,7 +129,7 @@ func (c *softirqTracing) Start(ctx context.Context) error {
 
 // softirqDumpTrace is an interface for dump stacks in this case with offset and module info
 func softirqDumpTrace(addrs []uint64) string {
-	stacks := symbolutil.DumpKernelBackTrace(addrs, symbolutil.KsymbolStackMaxDepth)
+	stacks := symbol.DumpKernelBackTrace(addrs, symbol.KsymbolStackMaxDepth)
 	return strings.Join(stacks.BackTrace, "\n")
 }
 

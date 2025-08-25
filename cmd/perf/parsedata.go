@@ -25,7 +25,7 @@ import (
 
 	"huatuo-bamai/internal/bpf"
 	"huatuo-bamai/internal/flamegraph"
-	"huatuo-bamai/internal/utils/symbolutil"
+	"huatuo-bamai/internal/symbol"
 
 	ingestv1 "github.com/grafana/pyroscope/api/gen/proto/go/ingester/v1"
 	querierv1 "github.com/grafana/pyroscope/api/gen/proto/go/querier/v1"
@@ -48,7 +48,7 @@ type eventdata struct {
 
 // CgDumpTrace is an interface for dump stacks in cgusage case
 func CgDumpTrace(addrs []uint64) string {
-	stacks := symbolutil.DumpKernelBackTrace(addrs, perfStackDepth)
+	stacks := symbol.DumpKernelBackTrace(addrs, perfStackDepth)
 	return strings.Join(stacks.BackTrace, "\n")
 }
 
@@ -92,7 +92,7 @@ func parsedata(b bpf.BPF) error {
 		Value uint64
 	}
 
-	u := symbolutil.NewUsym()
+	u := symbol.NewUsym()
 	for _, v := range items {
 		ed := eventdata{}
 		var count uint64
