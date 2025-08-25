@@ -23,7 +23,6 @@ import (
 
 	"huatuo-bamai/internal/bpf"
 	"huatuo-bamai/internal/storage"
-	"huatuo-bamai/internal/utils/bpfutil"
 	"huatuo-bamai/internal/utils/kmsgutil"
 	"huatuo-bamai/pkg/metric"
 	"huatuo-bamai/pkg/tracing"
@@ -33,7 +32,7 @@ import (
 
 type hungTaskPerfEventData struct {
 	Pid  int32
-	Comm [bpfutil.TaskCommLen]byte
+	Comm [bpf.TaskCommLen]byte
 }
 
 // HungTaskTracerData is the full data structure.
@@ -78,7 +77,7 @@ func (c *hungTaskTracing) Update() ([]*metric.Data, error) {
 }
 
 func (c *hungTaskTracing) Start(ctx context.Context) error {
-	b, err := bpf.LoadBpf(bpfutil.ThisBpfOBJ(), nil)
+	b, err := bpf.LoadBpf(bpf.ThisBpfOBJ(), nil)
 	if err != nil {
 		return err
 	}

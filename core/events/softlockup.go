@@ -22,7 +22,6 @@ import (
 
 	"huatuo-bamai/internal/bpf"
 	"huatuo-bamai/internal/storage"
-	"huatuo-bamai/internal/utils/bpfutil"
 	"huatuo-bamai/internal/utils/kmsgutil"
 	"huatuo-bamai/pkg/metric"
 	"huatuo-bamai/pkg/tracing"
@@ -72,7 +71,7 @@ func (c *softLockupTracing) Update() ([]*metric.Data, error) {
 }
 
 func (c *softLockupTracing) Start(ctx context.Context) error {
-	b, err := bpf.LoadBpf(bpfutil.ThisBpfOBJ(), nil)
+	b, err := bpf.LoadBpf(bpf.ThisBpfOBJ(), nil)
 	if err != nil {
 		return err
 	}

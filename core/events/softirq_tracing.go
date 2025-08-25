@@ -23,7 +23,6 @@ import (
 	"huatuo-bamai/internal/bpf"
 	"huatuo-bamai/internal/conf"
 	"huatuo-bamai/internal/storage"
-	"huatuo-bamai/internal/utils/bpfutil"
 	"huatuo-bamai/internal/utils/symbolutil"
 	"huatuo-bamai/pkg/tracing"
 )
@@ -37,7 +36,7 @@ type softirqPerfEvent struct {
 	StackSize int64
 	Now       uint64
 	StallTime uint64
-	Comm      [bpfutil.TaskCommLen]byte
+	Comm      [bpf.TaskCommLen]byte
 	Pid       uint32
 	CPU       uint32
 }
@@ -68,7 +67,7 @@ func newSoftirq() (*tracing.EventTracingAttr, error) {
 func (c *softirqTracing) Start(ctx context.Context) error {
 	softirqThresh := conf.Get().Tracing.Softirq.ThresholdTime
 
-	b, err := bpf.LoadBpf(bpfutil.ThisBpfOBJ(), map[string]any{"softirq_thresh": softirqThresh})
+	b, err := bpf.LoadBpf(bpf.ThisBpfOBJ(), map[string]any{"softirq_thresh": softirqThresh})
 	if err != nil {
 		return fmt.Errorf("load bpf: %w", err)
 	}

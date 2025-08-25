@@ -25,7 +25,6 @@ import (
 	"huatuo-bamai/internal/conf"
 	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/storage"
-	"huatuo-bamai/internal/utils/bpfutil"
 	"huatuo-bamai/internal/utils/netutil"
 	"huatuo-bamai/internal/utils/symbolutil"
 	"huatuo-bamai/pkg/tracing"
@@ -81,7 +80,7 @@ type perfEventT struct {
 	SkMaxAckBacklog uint32                                  `json:"sk_max_ack_backlog"`
 	State           uint8                                   `json:"state"`
 	Type            uint8                                   `json:"type"`
-	Comm            [bpfutil.TaskCommLen]byte               `json:"comm"`
+	Comm            [bpf.TaskCommLen]byte                   `json:"comm"`
 }
 
 type DropWatchTracingData struct {
@@ -121,7 +120,7 @@ func newDropWatch() (*tracing.EventTracingAttr, error) {
 
 // Start starts the tracer.
 func (c *dropWatchTracing) Start(ctx context.Context) error {
-	b, err := bpf.LoadBpf(bpfutil.ThisBpfOBJ(), nil)
+	b, err := bpf.LoadBpf(bpf.ThisBpfOBJ(), nil)
 	if err != nil {
 		return fmt.Errorf("load bpf: %w", err)
 	}
