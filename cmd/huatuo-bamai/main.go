@@ -166,8 +166,13 @@ const (
 	optionConfigDir  = "config-dir"
 )
 
-func buildOptionDir(dir string) string {
+func buildOptionDir(optionDir string, ctx *cli.Context) string {
+	dir := ctx.String(optionDir)
 	if filepath.IsAbs(dir) {
+		return dir
+	}
+
+	if ctx.IsSet(optionDir) {
 		return dir
 	}
 
@@ -233,10 +238,10 @@ func main() {
 	}
 
 	app.Before = func(ctx *cli.Context) error {
-		bpf.DefaultBpfObjDir = buildOptionDir(ctx.String(optionBpfObjDir))
-		tracing.TaskBinDir = buildOptionDir(ctx.String(optionToolBinDir))
+		bpf.DefaultBpfObjDir = buildOptionDir(optionBpfObjDir, ctx)
+		tracing.TaskBinDir = buildOptionDir(optionToolBinDir, ctx)
 
-		configDir := buildOptionDir(ctx.String(optionConfigDir))
+		configDir := buildOptionDir(optionConfigDir, ctx)
 		if err := conf.LoadConfig(filepath.Join(configDir, ctx.String("config"))); err != nil {
 			return fmt.Errorf("load config: %w", err)
 		}
