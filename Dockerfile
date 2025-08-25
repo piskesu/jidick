@@ -16,14 +16,11 @@ ARG BUILD_PATH=${BUILD_PATH:-/go/huatuo-bamai}
 ARG RUN_PATH=${RUN_PATH:-/home/huatuo-bamai}
 WORKDIR ${BUILD_PATH}
 COPY . .
-RUN make && \
-    mkdir -p ${RUN_PATH}/bpf && \
-    cp ${BUILD_PATH}/_output/bin/* ${RUN_PATH}/ && \
-    cp ${BUILD_PATH}/huatuo-bamai.conf ${RUN_PATH}/huatuo-bamai.conf && \
-    cp ${BUILD_PATH}/bpf/*.o ${RUN_PATH}/bpf/
+RUN make && mkdir -p ${RUN_PATH} && \
+    cp -rf ${BUILD_PATH}/_output/* ${RUN_PATH}/
 
 # Comment following line if elasticsearch is needed and repalce the ES configs in huatuo-bamai.conf
-RUN sed -i 's/"http:\/\/127.0.0.1:9200"/""/' ${RUN_PATH}/huatuo-bamai.conf
+RUN sed -i 's/"http:\/\/127.0.0.1:9200"/""/' ${RUN_PATH}/conf/huatuo-bamai.conf
 
 # final public image
 FROM alpine:3.22.0 AS run
@@ -31,4 +28,4 @@ ARG RUN_PATH=${RUN_PATH:-/home/huatuo-bamai}
 RUN apk add --no-cache curl
 COPY --from=build ${RUN_PATH} ${RUN_PATH}
 WORKDIR ${RUN_PATH}
-CMD ["./huatuo-bamai", "--region", "example", "--config", "huatuo-bamai.conf"]
+CMD ["./huatuo-bamai", "--region", "example", "--config", "conf/huatuo-bamai.conf"]
