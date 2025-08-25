@@ -17,7 +17,7 @@ GO_BUILD_STATIC_WITH_VERSION := $(GO_BUILD_STATIC) \
 	-X main.AppGitCommit=$(APP_COMMIT) \
 	-X main.AppBuildTime=$(APP_BUILD_TIME)"
 
-all: gen-deps gen bpf-sync build
+all: gen-deps gen sync build
 
 gen-deps:
 	# maybe need to install libbpf-devel
@@ -32,9 +32,10 @@ APP_CMD_OUTPUT := _output
 CMD_SUBDIRS := $(shell find $(APP_CMD_DIR) -mindepth 1 -maxdepth 1 -type d)
 APP_CMD_BIN_TARGETS := $(patsubst %,$(APP_CMD_OUTPUT)/bin/%,$(notdir $(CMD_SUBDIRS)))
 
-bpf-sync:
-	@mkdir -p $(APP_CMD_OUTPUT)/bpf
-	@cp $(BPF_DIR)/*.o $(APP_CMD_OUTPUT)/bpf || true
+sync:
+	@mkdir -p $(APP_CMD_OUTPUT)/conf $(APP_CMD_OUTPUT)/bpf
+	@cp $(BPF_DIR)/*.o $(APP_CMD_OUTPUT)/bpf/
+	@cp *.conf $(APP_CMD_OUTPUT)/conf/
 
 build: $(APP_CMD_BIN_TARGETS)
 $(APP_CMD_OUTPUT)/bin/%: $(APP_CMD_DIR)/% CMD_FORCE
@@ -64,4 +65,4 @@ vendor:
 clean:
 	rm -rf _output $(shell find . -type f -name "*.o")
 
-.PHONY: all gen-deps gen bpf-sync build check imports golint fmt golangci-lint vendor clean CMD_FORCE
+.PHONY: all gen-deps gen sync build check imports golint fmt golangci-lint vendor clean CMD_FORCE
