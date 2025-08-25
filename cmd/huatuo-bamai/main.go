@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"syscall"
@@ -32,6 +33,7 @@ import (
 	"huatuo-bamai/internal/pod"
 	"huatuo-bamai/internal/services"
 	"huatuo-bamai/internal/storage"
+	"huatuo-bamai/internal/utils/executil"
 	"huatuo-bamai/internal/utils/pidutil"
 	"huatuo-bamai/pkg/tracing"
 
@@ -158,6 +160,25 @@ var (
 	AppUsage   = "An In-depth Observation of Linux Kernel Application"
 )
 
+const (
+	optionBpfObjDir  = "bpf-dir"
+	optionToolBinDir = "tools-bin-dir"
+	optionConfigDir  = "config-dir"
+)
+
+func buildOptionDir(dir string) string {
+	if filepath.IsAbs(dir) {
+		return dir
+	}
+
+	runningDir, err := executil.RunningDir()
+	if err != nil {
+		panic("find running dir")
+	}
+
+	return filepath.Join(runningDir, "../", dir)
+}
+
 func main() {
 	app := cli.NewApp()
 	app.Usage = AppUsage
@@ -182,6 +203,21 @@ func main() {
 			Usage: "huatuo-bamai config file",
 		},
 		&cli.StringFlag{
+			Name:  optionConfigDir,
+			Value: "conf",
+			Usage: "huatuo config dir",
+		},
+		&cli.StringFlag{
+			Name:  optionBpfObjDir,
+			Value: "bpf",
+			Usage: "bpf obj dir",
+		},
+		&cli.StringFlag{
+			Name:  optionToolBinDir,
+			Value: "bin",
+			Usage: "tools bin dir",
+		},
+		&cli.StringFlag{
 			Name:     "region",
 			Required: true,
 			Usage:    "the host and containers are in this region",
@@ -197,8 +233,12 @@ func main() {
 	}
 
 	app.Before = func(ctx *cli.Context) error {
-		if err := conf.LoadConfig(ctx.String("config")); err != nil {
-			return fmt.Errorf("failed to load config: %w", err)
+		bpf.DefaultBpfObjDir = buildOptionDir(ctx.String(optionBpfObjDir))
+		tracing.TaskBinDir = buildOptionDir(ctx.String(optionToolBinDir))
+
+		configDir := buildOptionDir(ctx.String(optionConfigDir))
+		if err := conf.LoadConfig(filepath.Join(configDir, ctx.String("config"))); err != nil {
+			return fmt.Errorf("load config: %w", err)
 		}
 
 		// set Region
@@ -234,6 +274,10 @@ func main() {
 		if ctx.Bool("log-debug") {
 			log.SetLevel("Debug")
 		}
+
+		// print dirs
+		log.Debugf("option %s: %s, %s: %s, %s: %s", optionBpfObjDir, bpf.DefaultBpfObjDir,
+			optionToolBinDir, tracing.TaskBinDir, optionConfigDir, configDir)
 
 		return nil
 	}

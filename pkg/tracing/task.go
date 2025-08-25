@@ -20,9 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -46,7 +44,7 @@ const (
 	StatusNotExist = "not_exist"
 )
 
-var TaskBinDir = "./tracer"
+var TaskBinDir = "bin"
 
 type TaskStorageType int
 
@@ -86,9 +84,6 @@ var (
 )
 
 func init() {
-	if exePath, err := os.Executable(); err == nil {
-		TaskBinDir = filepath.Dir(exePath)
-	}
 	go tasksGarbageCollect()
 }
 

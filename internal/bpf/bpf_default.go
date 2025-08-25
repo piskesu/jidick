@@ -35,9 +35,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-const (
-	bpfFileDirectory = "./bpf"
-)
+var DefaultBpfObjDir = "bpf"
 
 // InitBpfManager initializes the bpf manager.
 func InitBpfManager(opt *Option) error {
@@ -83,7 +81,7 @@ func LoadBpfFromBytes(bpfName string, bpfBytes []byte, consts map[string]any) (B
 
 // LoadBpf the bpf and return the bpf.
 func LoadBpf(bpfName string, consts map[string]any) (BPF, error) {
-	f, err := os.Open(filepath.Join(bpfFileDirectory, bpfName))
+	f, err := os.Open(filepath.Join(DefaultBpfObjDir, bpfName))
 	if err != nil {
 		return nil, err
 	}
