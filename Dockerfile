@@ -28,4 +28,4 @@ ARG RUN_PATH=${RUN_PATH:-/home/huatuo-bamai}
 RUN apk add --no-cache curl
 COPY --from=build ${RUN_PATH} ${RUN_PATH}
 WORKDIR ${RUN_PATH}
-CMD ["./huatuo-bamai", "--region", "example", "--config", "conf/huatuo-bamai.conf"]
+CMD ["./bin/huatuo-bamai", "--region", "example", "--config", "huatuo-bamai.conf"]
