@@ -72,11 +72,30 @@ type Cgroup interface {
 }
 
 func NewCgroupManager() (Cgroup, error) {
+	// https://github.com/systemd/systemd/blob/main/docs/CGROUP_DELEGATION.md
+	//
+	// Legacy — this is the traditional cgroup v1 mode. In this mode the various
+	// controllers each get their own cgroup file system mounted to /sys/fs/cgroup/<controller>/.
+	// On top of that systemd manages its own cgroup hierarchy for managing purposes as /sys/fs/cgroup/systemd/.
+	//
+	// Hybrid — this is a hybrid between the unified and legacy mode.
+	// It's set up mostly like legacy, except that there's also an additional
+	// hierarchy /sys/fs/cgroup/unified/ that contains the cgroup v2 hierarchy.
+	// (Note that in this mode the unified hierarchy won't have controllers
+	// attached, the controllers are all mounted as separate hierarchies as
+	// in legacy mode, i.e. /sys/fs/cgroup/unified/ is purely and exclusively
+	// about core cgroup v2 functionality and not about resource management.)
+	// In this mode compatibility with cgroup v1 is retained while some NewCgroupManager
+	// v2 features are available too. This mode is a stopgap.
+	// Don't bother with this too much unless you have too much free time.
+
 	switch extcgroups.Mode() {
 	case extcgroups.Legacy:
 		return v1.New()
-	case extcgroups.Hybrid, extcgroups.Unified:
+	case extcgroups.Unified:
 		return v2.New()
+	case extcgroups.Hybrid:
+		return v1.New()
 	default:
 		return nil, fmt.Errorf("not supported")
 	}
