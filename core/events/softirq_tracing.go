@@ -16,7 +16,9 @@ package events
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -25,6 +27,7 @@ import (
 	"huatuo-bamai/internal/storage"
 	"huatuo-bamai/internal/symbol"
 	"huatuo-bamai/pkg/tracing"
+	"huatuo-bamai/pkg/types"
 )
 
 //go:generate $BPF_COMPILE $BPF_INCLUDE -s $BPF_DIR/softirq_tracing.c -o $BPF_DIR/softirq_tracing.o
@@ -78,6 +81,10 @@ func (c *softirqTracing) Start(ctx context.Context) error {
 
 	reader, err := attachIrqAndEventPipe(childCtx, b)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return types.ErrNotSupported
+		}
+
 		return fmt.Errorf("attach irq and event pipe: %w", err)
 	}
 	defer reader.Close()
