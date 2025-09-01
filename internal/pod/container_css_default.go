@@ -65,7 +65,8 @@ var (
 	// 2. cgroup dir name is containerID
 	kubeletContainerIDRegexp  = regexp.MustCompile(`[^a-zA-Z0-9]+`)
 	cgroupv1SubSysName        = []string{"cpu", "cpuacct", "cpuset", "memory", "blkio"}
-	cgroupv1NotifyCgroupFile  = "cgroup.clone_children"
+	cgroupv1NotifyFile        = "cgroup.clone_children"
+	cgroupv2NotifyFile        = "memory.current"
 	cgroupCssID2SubSysNameMap = map[int]string{}
 	cgroupCssMetaDataMap      sync.Map
 
@@ -176,7 +177,7 @@ func cgroupCssEventSync(ctx context.Context, reader bpf.PerfEventReader) {
 				log.Debugf("sync container css data: %+v", data)
 
 				switch data.OpsType {
-				case 0: // mkdir cgroup
+				case 0: // mkdir cgroup, or cgroupv1/v2 read specific file to collect css
 					_ = cgroupUpdateOrCreateCssData(&data)
 				case 1: // rmdir cgroup
 					_ = cgroupDeleteCssData(&data)
@@ -188,44 +189,54 @@ func cgroupCssEventSync(ctx context.Context, reader bpf.PerfEventReader) {
 	}()
 }
 
-func cgroupCssNotify() {
-	rootSet := mapset.NewSet()
-
-	for _, subsys := range cgroupv1SubSysName {
-		root := cgroups.RootFsFilePath(subsys)
-		realRoot, err := filepath.EvalSymlinks(root)
+func cgroupRootNotify(realRoot, name string) error {
+	if err := filepath.WalkDir(realRoot, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			continue
+			return err
 		}
 
-		if rootSet.Contains(realRoot) {
-			continue
+		if !d.IsDir() || len(d.Name()) != kubeletContainerIDKnodeMaxlen {
+			return nil
 		}
 
-		rootSet.Add(realRoot)
+		notifyPath := filepath.Join(path, name)
+		_, _ = os.ReadFile(notifyPath)
 
-		if err := filepath.WalkDir(realRoot, func(path string, d fs.DirEntry, err error) error {
+		log.Debugf("read cgroup path: %s", notifyPath)
+		return filepath.SkipDir
+	}); err != nil {
+		var e *os.PathError
+		if errors.As(err, &e) && errors.Is(e.Err, syscall.ENOENT) {
+			return nil
+		}
+
+		return err
+	}
+
+	return nil
+}
+
+func cgroupCssNotify() {
+	switch cgroups.CgroupMode() {
+	case cgroups.Legacy, cgroups.Hybrid:
+		rootSet := mapset.NewSet()
+		for _, subsys := range cgroupv1SubSysName {
+			root := cgroups.RootFsFilePath(subsys)
+			realRoot, err := filepath.EvalSymlinks(root)
 			if err != nil {
-				return err
-			}
-
-			if !d.IsDir() || len(d.Name()) != kubeletContainerIDKnodeMaxlen {
-				return nil
-			}
-
-			notifyPath := filepath.Join(path, cgroupv1NotifyCgroupFile)
-			_, _ = os.ReadFile(notifyPath)
-
-			log.Debugf("read cgroup path: %s", notifyPath)
-			return filepath.SkipDir
-		}); err != nil {
-			var e *os.PathError
-			if errors.As(err, &e) && errors.Is(e.Err, syscall.ENOENT) {
 				continue
 			}
 
-			return
+			if rootSet.Contains(realRoot) {
+				continue
+			}
+
+			rootSet.Add(realRoot)
+
+			_ = cgroupRootNotify(realRoot, cgroupv1NotifyFile)
 		}
+	case cgroups.Unified:
+		_ = cgroupRootNotify(cgroups.RootfsDefaultPath(), cgroupv2NotifyFile)
 	}
 }
 
@@ -280,9 +291,21 @@ func cgroupInitGatherCss() error {
 	childCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	reader, err := cssBpf.AttachAndEventPipe(childCtx, "cgroup_perf_events", 8192)
+	if err := cssBpf.AttachWithOptions([]bpf.AttachOption{
+		{
+			ProgramName: "bpf_cgroup_subsys_state_prog",
+			Symbol:      "cgroup_clone_children_read",
+		},
+		{
+			ProgramName: "bpf_cgroup_subsys_state_prog",
+			Symbol:      "memory_current_read",
+		},
+	}); err != nil {
+		return err
+	}
+
+	reader, err := cssBpf.EventPipeByName(childCtx, "cgroup_perf_events", 8192)
 	if err != nil {
-		log.Infof("AttachAndEventPipe: %v", err)
 		return err
 	}
 	defer reader.Close()
