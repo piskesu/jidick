@@ -318,7 +318,7 @@ func cgroupCssExistedGather() error {
 
 func ContainerCgroupCssInit() error {
 	if err := cgroupInitSubSysIDs(); err != nil {
-		panic("only support cgroupv1 now")
+		return err
 	}
 
 	if err := cgroupCssExistedGather(); err != nil {
