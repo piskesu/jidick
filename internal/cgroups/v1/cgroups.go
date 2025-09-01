@@ -15,7 +15,9 @@
 package v1
 
 import (
+	"errors"
 	"math"
+	"syscall"
 
 	"huatuo-bamai/internal/cgroups/paths"
 	"huatuo-bamai/internal/cgroups/pids"
@@ -155,7 +157,14 @@ func (c *CgroupV1) MemoryStatRaw(path string) (map[string]uint64, error) {
 }
 
 func (c *CgroupV1) MemoryEventRaw(path string) (map[string]uint64, error) {
-	return parseutil.RawKV(paths.Path(subsysMemory, path, "memory.events"))
+	events, err := parseutil.RawKV(paths.Path(subsysMemory, path, "memory.events"))
+	if err != nil && errors.Is(err, syscall.ENOENT) {
+		// didi kernel cgroupv1 support memmory.events
+		// so for native cgroupv1, ignore syscall.ENOENT
+		return nil, nil
+	}
+
+	return events, err
 }
 
 func (c *CgroupV1) MemoryUsage(path string) (*stats.MemoryUsage, error) {
