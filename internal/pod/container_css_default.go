@@ -60,9 +60,6 @@ const (
 )
 
 var (
-	// FIXME:
-	// 1. cgroupv supported only
-	// 2. cgroup dir name is containerID
 	kubeletContainerIDRegexp  = regexp.MustCompile(`[^a-zA-Z0-9]+`)
 	cgroupv1SubSysName        = []string{"cpu", "cpuacct", "cpuset", "memory", "blkio"}
 	cgroupv1NotifyFile        = "cgroup.clone_children"
@@ -159,7 +156,7 @@ func cgroupDeleteCssData(data *containerCssPerfEvent) error {
 	return nil
 }
 
-func cgroupCssEventSync(ctx context.Context, reader bpf.PerfEventReader) {
+func cgroupCssEventSyncHandler(ctx context.Context, reader bpf.PerfEventReader) {
 	go func() {
 		for {
 			select {
@@ -216,7 +213,7 @@ func cgroupRootNotify(realRoot, name string) error {
 	return nil
 }
 
-func cgroupCssNotify() {
+func cgroupCssNotifyFile() {
 	switch cgroups.CgroupMode() {
 	case cgroups.Legacy, cgroups.Hybrid:
 		rootSet := mapset.NewSet()
@@ -263,7 +260,7 @@ func cgroupInitSubSysIDs() error {
 	return nil
 }
 
-func cgroupInitEventCssWithoutCleanup() error {
+func cgroupCssInitEventSync() error {
 	cssBpf, err := bpf.LoadBpf("cgroup_css_events.o", nil)
 	if err != nil {
 		return fmt.Errorf("LoadBpf: %w", err)
@@ -273,15 +270,14 @@ func cgroupInitEventCssWithoutCleanup() error {
 	childCtx := context.Background()
 	reader, err := cssBpf.AttachAndEventPipe(childCtx, "cgroup_perf_events", 8192)
 	if err != nil {
-		log.Infof("AttachAndEventPipe: %v", err)
 		return err
 	}
 
-	cgroupCssEventSync(childCtx, reader)
+	cgroupCssEventSyncHandler(childCtx, reader)
 	return nil
 }
 
-func cgroupInitGatherCss() error {
+func cgroupCssExistedGather() error {
 	cssBpf, err := bpf.LoadBpf("cgroup_css_gather.o", nil)
 	if err != nil {
 		return fmt.Errorf("LoadBpf: %w", err)
@@ -310,10 +306,10 @@ func cgroupInitGatherCss() error {
 	}
 	defer reader.Close()
 
-	cgroupCssEventSync(childCtx, reader)
+	cgroupCssEventSyncHandler(childCtx, reader)
 	time.Sleep(100 * time.Millisecond)
 
-	cgroupCssNotify()
+	cgroupCssNotifyFile()
 
 	// wait sync
 	time.Sleep(1 * time.Second)
@@ -325,10 +321,10 @@ func ContainerCgroupCssInit() error {
 		panic("only support cgroupv1 now")
 	}
 
-	if err := cgroupInitGatherCss(); err != nil {
+	if err := cgroupCssExistedGather(); err != nil {
 		return err
 	}
-	if err := cgroupInitEventCssWithoutCleanup(); err != nil {
+	if err := cgroupCssInitEventSync(); err != nil {
 		return err
 	}
 
