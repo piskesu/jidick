@@ -22,6 +22,7 @@ import (
 	"runtime"
 	"strings"
 	"syscall"
+	"time"
 
 	_ "huatuo-bamai/core/autotracing"
 	_ "huatuo-bamai/core/events"
@@ -128,6 +129,13 @@ func mainAction(ctx *cli.Context) error {
 
 	waitExit := make(chan os.Signal, 1)
 	signal.Notify(waitExit, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGUSR1, syscall.SIGINT, syscall.SIGTERM)
+
+	if ctx.Bool("dry-run") {
+		time.Sleep(2 * time.Second)
+		log.Infof("huatuo-bamai exit gracefully by syscall.SIGTERM")
+		_ = syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
+	}
+
 	for {
 		s := <-waitExit
 		switch s {
@@ -230,6 +238,10 @@ func main() {
 		&cli.BoolFlag{
 			Name:  "log-debug",
 			Usage: "enable debug output for logging",
+		},
+		&cli.BoolFlag{
+			Name:  "dry-run",
+			Usage: "for loading tests, exit gracefully",
 		},
 	}
 
