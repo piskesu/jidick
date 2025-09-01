@@ -137,9 +137,17 @@ func ContainerPodMgrInit(ctx *PodContainerInitCtx) error {
 
 	err := kubeletPodListPortUpdate(ctx)
 	if !errors.Is(err, syscall.ECONNREFUSED) {
+		// success or other error codes except connect refused
+		// only init css metadata collect when kubelet available.
+		if err == nil {
+			return containerCgroupCssInit()
+		}
+
 		return err
 	}
 
+	// syscall.ECONNREFUSED:
+	// I hope k8s will be available in the future. :)
 	doneCtx, cancel := context.WithCancel(context.Background())
 
 	kubeletDoneCancel = cancel
@@ -151,6 +159,7 @@ func ContainerPodMgrInit(ctx *PodContainerInitCtx) error {
 				if err := kubeletPodListPortUpdate(ctx); err == nil {
 					log.Infof("kubelet is running now")
 					_ = kubeletCgroupDriverUpdate()
+					_ = containerCgroupCssInit()
 					ContainerPodMgrClose()
 					break
 				}

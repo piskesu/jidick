@@ -316,7 +316,7 @@ func cgroupCssExistedGather() error {
 	return nil
 }
 
-func ContainerCgroupCssInit() error {
+func containerCgroupCssInit() error {
 	if err := cgroupInitSubSysIDs(); err != nil {
 		return err
 	}

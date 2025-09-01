@@ -92,10 +92,6 @@ func mainAction(ctx *cli.Context) error {
 		return fmt.Errorf("failed to init bpf manager: %w", err)
 	}
 
-	if err := pod.ContainerCgroupCssInit(); err != nil {
-		return fmt.Errorf("init pod cgroup metadata: %w", err)
-	}
-
 	podListInitCtx := pod.PodContainerInitCtx{
 		PodListReadOnlyPort:   conf.Get().Pod.KubeletPodListURL,
 		PodListAuthorizedPort: conf.Get().Pod.KubeletPodListHTTPSURL,
