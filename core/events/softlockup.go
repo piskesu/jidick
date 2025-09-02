@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"huatuo-bamai/internal/bpf"
@@ -44,7 +45,7 @@ type SoftLockupTracerData struct {
 }
 
 type softLockupTracing struct {
-	softlockupMetric []*metric.Data
+	data []*metric.Data
 }
 
 func init() {
@@ -54,7 +55,7 @@ func init() {
 func newSoftLockup() (*tracing.EventTracingAttr, error) {
 	return &tracing.EventTracingAttr{
 		TracingData: &softLockupTracing{
-			softlockupMetric: []*metric.Data{
+			data: []*metric.Data{
 				metric.NewGaugeData("counter", 0, "softlockup counter", nil),
 			},
 		},
@@ -63,11 +64,11 @@ func newSoftLockup() (*tracing.EventTracingAttr, error) {
 	}, nil
 }
 
-var softlockupCounter float64
+var softlockupCounter int64
 
 func (c *softLockupTracing) Update() ([]*metric.Data, error) {
-	c.softlockupMetric[0].Value = softlockupCounter
-	return c.softlockupMetric, nil
+	c.data[0].Value = float64(atomic.LoadInt64(&softlockupCounter))
+	return c.data, nil
 }
 
 func (c *softLockupTracing) Start(ctx context.Context) error {
@@ -103,7 +104,7 @@ func (c *softLockupTracing) Start(ctx context.Context) error {
 				bt = err.Error()
 			}
 
-			softlockupCounter++
+			atomic.AddInt64(&softlockupCounter, 1)
 
 			storage.Save("softlockup", "", time.Now(), &SoftLockupTracerData{
 				CPU:       data.CPU,
