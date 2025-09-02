@@ -47,9 +47,9 @@ type HungTaskTracerData struct {
 }
 
 type hungTaskTracing struct {
-	metric                 []*metric.Data
-	bo                     *backoff.Backoff
-	nextCaptureAllowedTime time.Time
+	data            []*metric.Data
+	bo              *backoff.Backoff
+	nextAllowedTime time.Time
 }
 
 func init() {
@@ -67,7 +67,7 @@ func newHungTask() (*tracing.EventTracingAttr, error) {
 	bo.SetDecay(1 * time.Hour)
 	return &tracing.EventTracingAttr{
 		TracingData: &hungTaskTracing{
-			metric: []*metric.Data{
+			data: []*metric.Data{
 				metric.NewGaugeData("counter", 0, "hungtask counter", nil),
 			},
 			bo: bo,
@@ -80,8 +80,8 @@ func newHungTask() (*tracing.EventTracingAttr, error) {
 var hungtaskCounter int64
 
 func (c *hungTaskTracing) Update() ([]*metric.Data, error) {
-	c.metric[0].Value = float64(atomic.LoadInt64(&hungtaskCounter))
-	return c.metric, nil
+	c.data[0].Value = float64(atomic.LoadInt64(&hungtaskCounter))
+	return c.data, nil
 }
 
 func (c *hungTaskTracing) Start(ctx context.Context) error {
@@ -112,13 +112,14 @@ func (c *hungTaskTracing) Start(ctx context.Context) error {
 				return fmt.Errorf("hungtask ReadFromPerfEvent: %w", err)
 			}
 
+			atomic.AddInt64(&hungtaskCounter, 1)
+
 			now := time.Now()
-			if now.Before(c.nextCaptureAllowedTime) {
-				atomic.AddInt64(&hungtaskCounter, 1)
+			if now.Before(c.nextAllowedTime) {
 				continue
 			}
 
-			c.nextCaptureAllowedTime = now.Add(c.bo.Duration())
+			c.nextAllowedTime = now.Add(c.bo.Duration())
 
 			cpusBT, err := kmsgutil.GetAllCPUsBT()
 			if err != nil {
@@ -129,8 +130,6 @@ func (c *hungTaskTracing) Start(ctx context.Context) error {
 			if err != nil {
 				blockedProcessesBT = err.Error()
 			}
-
-			hungtaskCounter++
 
 			storage.Save("hungtask", "", time.Now(), &HungTaskTracerData{
 				Pid:                   data.Pid,
