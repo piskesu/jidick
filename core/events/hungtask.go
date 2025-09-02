@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"huatuo-bamai/internal/bpf"
@@ -76,10 +77,10 @@ func newHungTask() (*tracing.EventTracingAttr, error) {
 	}, nil
 }
 
-var hungtaskCounter float64
+var hungtaskCounter int64
 
 func (c *hungTaskTracing) Update() ([]*metric.Data, error) {
-	c.metric[0].Value = hungtaskCounter
+	c.metric[0].Value = float64(atomic.LoadInt64(&hungtaskCounter))
 	return c.metric, nil
 }
 
@@ -113,7 +114,7 @@ func (c *hungTaskTracing) Start(ctx context.Context) error {
 
 			now := time.Now()
 			if now.Before(c.nextCaptureAllowedTime) {
-				hungtaskCounter++
+				atomic.AddInt64(&hungtaskCounter, 1)
 				continue
 			}
 
